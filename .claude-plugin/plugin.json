@@ -1,0 +1,8 @@
+{
+  "name": "backlog",
+  "description": "Manage UNIFIED_PLAN.md tasks - status, prune, launch, complete worktrees",
+  "version": "1.0.0",
+  "author": {
+    "name": "cyotee"
+  }
+}
