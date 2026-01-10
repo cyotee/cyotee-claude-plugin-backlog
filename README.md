@@ -52,6 +52,48 @@ This will create UNIFIED_PLAN.md with your task.
 
 ---
 
+### `/backlog:read <task-number>`
+
+Display the full content of a specific task from UNIFIED_PLAN.md.
+
+**What it does:**
+1. Finds the specified task in UNIFIED_PLAN.md
+2. Extracts the complete task section
+3. Displays formatted output with all task details
+
+**Example usage:**
+```
+/backlog:read 5
+```
+
+**Example output:**
+```markdown
+# Task 5: Protocol DETF (CHIR) System
+
+**Layer:** IndexedEx
+**Status:** Ready for Agent
+**Worktree:** Not started
+
+---
+
+### Description
+Implement the Protocol DETF system (CHIR token) with integrated fee distribution...
+
+### User Stories
+
+**US-5.1: Mint CHIR with WETH**
+As a user, I want to deposit WETH to receive CHIR tokens...
+
+[Full task content]
+```
+
+**Error handling:**
+- No task number: Shows usage instructions
+- Task not found: Lists available task numbers
+- No UNIFIED_PLAN.md: Suggests creating one with /design
+
+---
+
 ### `/backlog:launch <task-number>`
 
 Create a git worktree and PROMPT.md for a task, ready for agent execution.
@@ -234,11 +276,12 @@ The `/backlog:launch` and `/backlog:complete` commands maintain a status table i
 
 ```
 1. /design <feature>      # Create task
-2. /backlog               # View tasks
-3. /backlog:launch 5      # Create worktree
-4. (agent works)          # Execute task
-5. /backlog:complete 5    # Merge to main
-6. /backlog:prune         # Archive completed
+2. /backlog               # View all tasks
+3. /backlog:read 5        # Read task details
+4. /backlog:launch 5      # Create worktree
+5. (agent works)          # Execute task
+6. /backlog:complete 5    # Merge to main
+7. /backlog:prune         # Archive completed
 ```
 
 ## License
