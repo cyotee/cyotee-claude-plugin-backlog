@@ -1,66 +1,61 @@
 ---
-description: Display task status summary from UNIFIED_PLAN.md
+description: Display task status summary (alias for /backlog:status)
 ---
 
 # Backlog Status
 
-Display a summary table of all tasks in UNIFIED_PLAN.md.
+Display a summary of all tasks from the tasks/ directory. This is an alias for `/backlog:status`.
 
 ## Instructions
 
-1. **Find UNIFIED_PLAN.md** in current working directory or repository root.
+See `/backlog:status` for full documentation.
 
-2. **If not found or empty:** Report that no backlog is defined:
-   ```
-   No backlog defined.
+### Quick Reference
 
-   To create a backlog, use /design to define your first task.
-   This will create UNIFIED_PLAN.md with your task.
-   ```
+1. **Identify the layer** based on current working directory
+2. **Read tasks/INDEX.md** or scan task directories
+3. **Display status table** with all tasks
+4. **Show summary counts** and recommended next task
 
-3. **If found, generate status table:**
+## Quick Status Check
 
-| Task | Title | Layer | Status | Dependencies |
-|------|-------|-------|--------|--------------|
+```bash
+# List all task directories
+ls -d tasks/*/
 
-Include:
-- Task number
-- Short title (truncate if needed)
-- Layer (Crane/daosys/IndexedEx)
-- Status (Complete/Ready for Agent/Pending/etc.)
-- Key dependencies or blockers
-
-4. **Show summary counts:**
-- Completed tasks
-- Tasks ready for agent
-- Blocked/pending tasks
-
-5. **Recommend next task** to work on (if any are ready).
+# Check INDEX.md
+cat tasks/INDEX.md
+```
 
 ## Example Output
 
 ```
-# Backlog Status
+# Backlog Status - IndexedEx
 
-| Task | Title                          | Layer    | Status          | Dependencies |
-|------|--------------------------------|----------|-----------------|--------------|
-| 1    | V3 Mainnet Fork Tests          | Crane    | Complete        | -            |
-| 2    | Slipstream Utils               | Crane    | Complete        | -            |
-| 3    | Uniswap V4 Utils               | Crane    | Ready for Agent | -            |
-| 7    | Slipstream Vault               | IndexedEx| Ready for Agent | Task 2       |
+| # | Title | Status | Worktree | Dependencies | Created |
+|---|-------|--------|----------|--------------|---------|
+| I-1 | Feature One | ✅ complete | - | - | 2026-01-05 |
+| I-2 | Feature Two | 🚀 in_progress | `feature/two` | I-1 | 2026-01-08 |
+| I-3 | Feature Three | 🆕 pending | - | I-2 | 2026-01-10 |
 
-Summary:
-- Completed: 2
-- Ready for agent: 2
-- Blocked/pending: 0
+## Summary
 
-Recommended next: Task 3 (Uniswap V4 Utils) - no dependencies
+- ✅ Complete: 1
+- 🚀 In Progress: 1
+- 📋 Review: 0
+- 🆕 Pending: 1
+- ❌ Blocked: 0
+
+## Recommended Next
+
+Start with: I-3 (after I-2 completes)
 ```
 
 ## Related Commands
 
-- `/backlog:status` - Same as /backlog (show status)
+- `/backlog:status` - Full status (same as /backlog)
+- `/backlog:read <id>` - View specific task details
+- `/backlog:launch <id>` - Launch agent for a task
+- `/backlog:complete <id>` - Mark task ready for review
 - `/backlog:prune` - Archive completed tasks
-- `/backlog:launch <N>` - Launch agent worktree for task N
-- `/design` - Create a new task
-- `/design:review` - Review existing tasks
+- `/design:task` - Create a new task

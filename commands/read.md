@@ -1,80 +1,127 @@
 ---
-description: Read and display a specific task from UNIFIED_PLAN.md
-argument-hint: <task-number>
+description: Read and display a specific task from tasks/
+argument-hint: <task-id>
 allowed-tools: Read, Glob, Grep
 ---
 
 # Read Task
 
-Display the full content of a specific task from UNIFIED_PLAN.md.
+Display the full content of a specific task from the tasks/ directory.
 
 **Task to read:** $ARGUMENTS
 
 ## Instructions
 
-1. **Extract task number** from arguments.
+### Step 1: Parse Task ID
 
-2. **Find UNIFIED_PLAN.md** in the current working directory or repository root.
+Extract the task ID from arguments. Expected formats:
+- `I-5` (full ID)
+- `5` (assumes current layer prefix)
+- `C-3` (Crane task)
+- `D-2` (daosys task)
 
-3. **Locate the task section** by searching for `## Task N:` where N is the task number.
+Determine the layer and task directory:
 
-4. **Extract the full task content** from the task header until the next task header (or end of file).
+| Prefix | Layer | Tasks Directory |
+|--------|-------|-----------------|
+| I | IndexedEx | `tasks/` |
+| D | daosys | `lib/daosys/tasks/` |
+| C | Crane | `lib/daosys/lib/crane/tasks/` |
 
-5. **Display the task** with formatted output including:
-   - Task number and title
-   - Layer (Crane/daosys/IndexedEx)
-   - Status
-   - Worktree (if applicable)
-   - Full description
-   - User stories
-   - Files to create/modify
-   - Inventory check items
-   - Completion criteria
+### Step 2: Read Task Files
 
-## Output Format
+Read all three task files:
+- `tasks/[PREFIX]-[N]/PRD.md` - Requirements and acceptance criteria
+- `tasks/[PREFIX]-[N]/PROGRESS.md` - Progress log
+- `tasks/[PREFIX]-[N]/REVIEW.md` - Review status (if started)
+
+### Step 3: Display Task Summary
 
 ```markdown
-# Task N: [Title]
+# Task [PREFIX]-[N]: [Title]
 
-**Layer:** [Crane/daosys/IndexedEx]
-**Status:** [Status]
-**Worktree:** [branch-name or "Not started"]
+**Layer:** [from frontmatter]
+**Status:** [from frontmatter]
+**Worktree:** [from frontmatter]
+**Created:** [from frontmatter]
+**Dependencies:** [from frontmatter]
 
 ---
 
-[Full task content from UNIFIED_PLAN.md]
+## PRD Summary
+
+[First section of PRD.md - Description]
+
+## Acceptance Criteria
+
+[Checklist from User Stories]
+
+## Current Progress
+
+**Last checkpoint:** [from PROGRESS.md header]
+**Next step:** [from PROGRESS.md header]
+**Build status:** [from PROGRESS.md]
+**Test status:** [from PROGRESS.md]
+
+## Recent Progress Entries
+
+[Last 3 entries from PROGRESS.md]
+
+## Review Status
+
+**Verdict:** [from REVIEW.md frontmatter or "Not reviewed"]
+**Reviewer:** [from REVIEW.md frontmatter or "Pending"]
+
+---
+
+## Quick Actions
+
+- View full PRD: `cat tasks/[PREFIX]-[N]/PRD.md`
+- View progress: `cat tasks/[PREFIX]-[N]/PROGRESS.md`
+- Launch agent: `/backlog:launch [PREFIX]-[N]`
+- Complete task: `/backlog:complete [PREFIX]-[N]`
 ```
 
 ## Error Handling
 
-- **No task number provided:** Show usage: `/backlog:read <task-number>`
-- **Task doesn't exist:** Show "Task N not found in UNIFIED_PLAN.md" and list available task numbers
-- **UNIFIED_PLAN.md not found:** Show "UNIFIED_PLAN.md not found. Create one with /design or specify location."
+- **No task ID provided:** Show usage: `/backlog:read <task-id>`
+- **Task doesn't exist:** Show "Task [ID] not found" and list available tasks
+- **Tasks directory missing:** Suggest running `/design:init`
 
 ## Examples
 
 ```
-/backlog:read 5
+/backlog:read I-5
 ```
 
 Output:
 ```markdown
-# Task 5: Protocol DETF (CHIR) System
+# Task I-5: Protocol DETF (CHIR) System
 
 **Layer:** IndexedEx
-**Status:** Ready for Agent
-**Worktree:** Not started
+**Status:** 🚀 in_progress
+**Worktree:** feature/protocol-detf
+**Created:** 2026-01-05
+**Dependencies:** I-3, I-4
 
 ---
 
-### Description
+## PRD Summary
+
 Implement the Protocol DETF system (CHIR token) with integrated fee distribution...
 
-[Full task content]
+## Current Progress
+
+**Last checkpoint:** Interfaces Complete (2026-01-10 15:01)
+**Next step:** Implement ProtocolDETFRepo.sol
+**Build status:** ✅ Passing
+**Test status:** ⏳ No tests yet
+
+...
 ```
 
 ## Notes
 
-- Task numbers are permanent and never renumbered
 - This is a read-only command - it does not modify any files
-- Use `/backlog:launch N` to create a worktree and start working on a task
+- Use `/backlog:launch [ID]` to create a worktree and start working
+- Use `/backlog:status` to see all tasks

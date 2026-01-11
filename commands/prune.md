@@ -1,53 +1,115 @@
 ---
-description: Archive completed tasks from UNIFIED_PLAN.md
+description: Archive completed tasks to tasks/archive/
+argument-hint: [<task-id>] [--all]
+allowed-tools: Read, Write, Edit, Bash, Glob, Grep
 ---
 
-# Prune Completed Tasks
+# Prune/Archive Completed Tasks
 
-Remove completed tasks from UNIFIED_PLAN.md and archive them.
+Move completed and reviewed tasks to the archive directory.
+
+**Arguments:** $ARGUMENTS
 
 ## Instructions
 
-1. **Read UNIFIED_PLAN.md** from current working directory or repository root.
+### Step 1: Identify Tasks to Archive
 
-2. **Identify completed tasks** (status contains "Complete").
+If `--all` specified:
+- Scan all task directories in `tasks/`
+- Find tasks with `status: complete` in PRD.md frontmatter
 
-3. **For each completed task:**
-   - Remove the entire task section (from `## Task N:` to the next `---`)
-   - Add a summary line to a "Completed Tasks Archive" section at the end
+If specific task ID provided:
+- Verify task exists and has `status: complete`
 
-4. **Important:**
-   - DO NOT renumber remaining tasks - task numbers are permanent
-   - Update the "Last Updated" date
+If no arguments:
+- Show list of archivable tasks and ask which to archive
 
-5. **Show what was pruned:**
+### Step 2: Verify Review Status
 
+For each task to archive, check `tasks/[PREFIX]-[N]/REVIEW.md`:
+- Must have `verdict: pass` or `verdict: pass_with_notes`
+- If verdict is `needs_work` or `pending`, warn and skip
+
+### Step 3: Move to Archive
+
+```bash
+mv tasks/[PREFIX]-[N] tasks/archive/[PREFIX]-[N]
 ```
-# Pruned Tasks
 
-Archived 2 completed tasks:
-- Task 1: V3 Mainnet Fork Tests
-- Task 2: Slipstream Utils
+### Step 4: Update INDEX.md
 
-Remaining tasks: 3, 5, 7, 8, 9, 10
-```
+Remove the archived task from the active tasks table.
 
-6. **Commit the changes** with message: `docs: prune completed tasks from UNIFIED_PLAN.md`
-
-## Archive Format
-
-Add to end of UNIFIED_PLAN.md:
+Add to an "Archived" section at the bottom of INDEX.md:
 
 ```markdown
-## Completed Tasks Archive
+## Archived Tasks
 
-| Task | Title | Completed |
-|------|-------|-----------|
-| 1 | V3 Mainnet Fork Tests | 2026-01-05 |
-| 2 | Slipstream Utils | 2026-01-07 |
+| # | Title | Completed | Review Verdict |
+|---|-------|-----------|----------------|
+| I-1 | Feature Name | 2026-01-10 | ✅ Pass |
 ```
+
+### Step 5: Clean Up Worktree (if exists)
+
+Check if worktree still exists:
+
+```bash
+git worktree list | grep [worktree-name]
+```
+
+If exists, provide cleanup command:
+
+```bash
+./scripts/wt-remove.sh [worktree-name]
+```
+
+### Step 6: Output Summary
+
+```
+# Tasks Archived
+
+Archived 2 tasks to tasks/archive/:
+
+| Task | Title | Review Verdict |
+|------|-------|----------------|
+| I-1 | Feature Name | ✅ Pass |
+| I-2 | Another Feature | ✅ Pass with notes |
+
+## Worktree Cleanup Needed
+
+The following worktrees should be removed:
+
+```bash
+./scripts/wt-remove.sh feature/name
+./scripts/wt-remove.sh feature/other
+```
+
+## Remaining Active Tasks
+
+| # | Title | Status |
+|---|-------|--------|
+| I-3 | Pending Feature | 🆕 pending |
+| I-5 | In Progress Feature | 🚀 in_progress |
+```
+
+## Arguments Reference
+
+| Argument | Description |
+|----------|-------------|
+| `<task-id>` | Specific task to archive (e.g., I-5) |
+| `--all` | Archive all tasks with status=complete |
 
 ## Error Handling
 
-- If no completed tasks: Inform user, no changes made
-- If UNIFIED_PLAN.md not found: Ask user to specify location
+- **No completed tasks:** "No tasks ready to archive"
+- **Task not reviewed:** "Task [ID] needs review before archiving"
+- **Task not found:** Show available tasks
+- **Archive directory missing:** Create it
+
+## Notes
+
+- Task directories are preserved in archive for historical reference
+- Task numbers are never reused
+- Review verdicts are preserved in archived REVIEW.md
+- Worktree cleanup is separate from task archiving

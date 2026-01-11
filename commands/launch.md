@@ -1,133 +1,161 @@
 ---
 description: Launch agent worktree for a specific task
-argument-hint: <task-number>
+argument-hint: <task-id>
 allowed-tools: Read, Write, Edit, Bash, Glob, Grep
 ---
 
-# Launch Agent Worktree
+# Launch Agent for Task
 
-Create a git worktree and PROMPT.md for a task, ready for agent execution.
+Create a git worktree and launch an agent for a specific task.
 
 **Task to launch:** $ARGUMENTS
 
 ## Instructions
 
-1. **Extract task number** from arguments.
+### Step 1: Parse Task ID
 
-2. **Read UNIFIED_PLAN.md** and find the specified task.
+Extract the task ID from arguments. Expected formats:
+- `I-5` (full ID)
+- `5` (assumes current layer prefix)
+- `C-3` (Crane task)
+- `D-2` (daosys task)
 
-3. **Determine worktree location** based on task Layer:
-   - **Crane:** worktree in `lib/daosys/lib/crane` submodule
-   - **daosys:** worktree in `lib/daosys` submodule
-   - **IndexedEx/product:** worktree in repo root
+Determine the layer and task directory:
 
-4. **Get branch name** from the task's "Worktree:" field.
+| Prefix | Layer | Tasks Directory |
+|--------|-------|-----------------|
+| I | IndexedEx | `tasks/` |
+| D | daosys | `lib/daosys/tasks/` |
+| C | Crane | `lib/daosys/lib/crane/tasks/` |
 
-5. **Create the worktree** using the submodule-aware script:
-   ```bash
-   # Use the plugin's wt-create script (handles submodules)
-   "${CLAUDE_PLUGIN_ROOT}/scripts/wt-create.sh" <branch-name> <repo-root>
-   ```
+### Step 2: Verify Task Exists
 
-   If the script is not available, fall back to:
-   ```bash
-   cd <appropriate-location>
-   git wt <branch-name>
-   # Then manually init submodules if needed:
-   git submodule update --init --recursive
-   ```
+Check that the task directory exists:
 
-6. **Write PROMPT.md** in the worktree root containing:
-   - The full task description from UNIFIED_PLAN.md
-   - Clear instructions to read and execute the task
-   - Completion promise format: `<promise>TASK_COMPLETE</promise>`
-   - Blocked format: `<promise>TASK_BLOCKED: [reason]</promise>`
-
-7. **Record worktree in UNIFIED_PLAN.md:**
-   - Find the "## Worktree Status" section
-   - Add a new row to the table:
-     ```
-     | Task N | `<branch-name>` | 🚀 In Progress |
-     ```
-   - If the table doesn't have a "Task" column, update the header:
-     ```
-     | Task | Worktree | Status |
-     |------|----------|--------|
-     ```
-
-8. **Output launch instructions:**
-
-```
-# Launch Agent for Task N: <title>
-
-Worktree created at: <full-worktree-path>
-Recorded in UNIFIED_PLAN.md
-
-## Start the agent:
-
-cd <full-worktree-path>
-claude --dangerously-skip-permissions
-
-## Then in Claude, run:
-
-/ralph-loop:ralph-loop "Read PROMPT.md and execute the task described in it." --completion-promise "TASK_COMPLETE" --max-iterations 10
+```bash
+ls tasks/[PREFIX]-[N]/PRD.md
 ```
 
-## PROMPT.md Template
+If not found, show available tasks and exit.
+
+### Step 3: Read Task PRD
+
+Read `tasks/[PREFIX]-[N]/PRD.md` to get:
+- Task title (from frontmatter)
+- Worktree name (from frontmatter)
+- Status
+- Dependencies
+
+### Step 4: Check Dependencies
+
+Read PRD frontmatter for dependencies. For each dependency:
+- Read the dependency's PRD.md
+- Check its status
+- If not complete: warn user, ask to continue anyway
+
+### Step 5: Check Task Status
+
+If task is already `in_progress`:
+- Warn user
+- Ask if they want to continue (resume existing work)
+
+If task is `complete`:
+- Warn user task is already done
+- Ask for confirmation to reopen
+
+If task is `blocked`:
+- Show block reason
+- Ask user to resolve or override
+
+### Step 6: Update Task Status
+
+Update the PRD.md frontmatter to `in_progress`:
+
+```yaml
+status: in_progress
+```
+
+Update INDEX.md with the status change.
+
+### Step 7: Create Worktree
+
+Get worktree name from PRD frontmatter and create:
+
+```bash
+# Use the submodule-aware script if available
+./scripts/wt-create.sh [worktree-name]
+```
+
+Or if script not available:
+
+```bash
+git worktree add ../[repo]-wt/[worktree-name] -b [worktree-name]
+cd ../[repo]-wt/[worktree-name]
+git submodule update --init --recursive
+```
+
+### Step 8: Update PROGRESS.md
+
+Add entry to the task's PROGRESS.md (at the top, reverse chronological):
 
 ```markdown
-# Task N: [Title]
+### [Today's Date Time] - Agent Launched
 
-[Full task content from UNIFIED_PLAN.md]
+- Worktree created at: [path]
+- Agent session starting
+- Reading PRD.md for requirements
 
----
+**Build status:** ⏳ Not checked
+**Test status:** ⏳ Not checked
+```
 
-## Agent Instructions
+### Step 9: Output Launch Instructions
 
-1. Read this PROMPT.md and CLAUDE.md to understand the task
-2. Perform inventory checks listed above
-3. Implement the user stories
-4. Verify completion criteria are met
-5. Output your completion promise
+```
+# Task [PREFIX]-[N]: [Title]
+
+**Status:** 🚀 in_progress
+**Worktree:** [full-path]
+**Dependencies:** [list or "None - ready to start"]
+
+## Launch Agent
+
+```bash
+cd [worktree-path]
+claude --dangerously-skip-permissions
+```
+
+## Start Working
+
+In Claude, run:
+
+```
+/ralph-loop:ralph-loop "Read tasks/[PREFIX]-[N]/PRD.md and PROGRESS.md. Execute the task, updating PROGRESS.md as you work." --completion-promise "TASK_COMPLETE" --max-iterations 10
+```
+
+## Task Files
+
+- PRD: tasks/[PREFIX]-[N]/PRD.md
+- Progress: tasks/[PREFIX]-[N]/PROGRESS.md
+- Review: tasks/[PREFIX]-[N]/REVIEW.md
 
 ## Completion
 
-When done, output: `<promise>TASK_COMPLETE</promise>`
+When done, the agent will output `<promise>TASK_COMPLETE</promise>`
 
-If blocked, output: `<promise>TASK_BLOCKED: [reason]</promise>`
+Then run: /backlog:complete [PREFIX]-[N]
 ```
-
-## Worktree Status Table Format
-
-The table in UNIFIED_PLAN.md should follow this format:
-
-```markdown
-## Worktree Status
-
-| Task | Worktree | Status |
-|------|----------|--------|
-| 1 | `feature/v3-mainnet-fork-tests` | ✅ Complete (merged to `crane/main`) |
-| 2 | `feature/slipstream-utils` | ✅ Complete (merged to `crane/main`) |
-| 3 | `feature/uniswap-v4-utils` | 🚀 In Progress |
-```
-
-**Status values:**
-- `🚀 In Progress` - Worktree active, agent working
-- `✅ Complete (merged to <branch>)` - Task done, worktree can be deleted
-- `⏸️ Paused` - Worktree exists but agent not running
-- `❌ Blocked: <reason>` - Agent encountered blocker
 
 ## Error Handling
 
-- **Task doesn't exist:** Show available task numbers
-- **Task already complete:** Warn user and ask for confirmation
-- **Worktree creation fails:** Show error and manual steps
-- **UNIFIED_PLAN.md not found:** Ask user to specify location
-- **Worktree already exists:** Show existing worktree path and ask to continue
+- **Task doesn't exist:** Show available tasks from INDEX.md
+- **Worktree already exists:** Ask to use existing or recreate
+- **Dependency not complete:** Show dependency status, ask to continue
+- **Submodule init fails:** Show manual commands
 
 ## Notes
 
-- Task numbers are permanent (never renumbered)
-- For Crane tasks, worktree path: `lib/daosys/lib/crane/../crane-wt/feature/<branch>`
-- Worktrees are created on-demand via this command
-- The worktree status table provides visibility into active agents
+- Task IDs are permanent (never renumbered)
+- For Crane tasks, worktree in crane submodule directory
+- Tasks are tracked in tasks/INDEX.md
+- Agent updates PROGRESS.md as it works
