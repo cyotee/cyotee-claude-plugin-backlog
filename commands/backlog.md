@@ -12,8 +12,8 @@ See `/backlog:status` for full documentation.
 
 ### Quick Reference
 
-1. **Identify the layer** based on current working directory
-2. **Read tasks/INDEX.md** or scan task directories
+1. **Detect layers** by scanning for tasks/ directories
+2. **Read tasks/INDEX.md** or scan task directories for each layer
 3. **Display status table** with all tasks
 4. **Show summary counts** and recommended next task
 
@@ -30,13 +30,13 @@ cat tasks/INDEX.md
 ## Example Output
 
 ```
-# Backlog Status - IndexedEx
+# Backlog Status - [LAYER_NAME]
 
 | # | Title | Status | Worktree | Dependencies | Created |
 |---|-------|--------|----------|--------------|---------|
-| I-1 | Feature One | ✅ complete | - | - | 2026-01-05 |
-| I-2 | Feature Two | 🚀 in_progress | `feature/two` | I-1 | 2026-01-08 |
-| I-3 | Feature Three | 🆕 pending | - | I-2 | 2026-01-10 |
+| [P]-1 | Feature One | ✅ complete | - | - | 2026-01-05 |
+| [P]-2 | Feature Two | 🚀 in_progress | `feature/two` | [P]-1 | 2026-01-08 |
+| [P]-3 | Feature Three | 🆕 pending | - | [P]-2 | 2026-01-10 |
 
 ## Summary
 
@@ -48,7 +48,7 @@ cat tasks/INDEX.md
 
 ## Recommended Next
 
-Start with: I-3 (after I-2 completes)
+Start with: [P]-3 (after [P]-2 completes)
 ```
 
 ## Related Commands

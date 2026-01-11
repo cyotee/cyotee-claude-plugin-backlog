@@ -15,20 +15,24 @@ Display the full content of a specific task from the tasks/ directory.
 ### Step 1: Parse Task ID
 
 Extract the task ID from arguments. Expected formats:
-- `I-5` (full ID)
-- `5` (assumes current layer prefix)
-- `C-3` (Crane task)
-- `D-2` (daosys task)
+- `[PREFIX]-N` (full ID with prefix, e.g., `P-5`)
+- `N` (number only - assumes current layer prefix)
 
-Determine the layer and task directory:
+### Step 2: Detect Layer from Prefix
 
-| Prefix | Layer | Tasks Directory |
-|--------|-------|-----------------|
-| I | IndexedEx | `tasks/` |
-| D | daosys | `lib/daosys/tasks/` |
-| C | Crane | `lib/daosys/lib/crane/tasks/` |
+Dynamically discover layers and their prefixes:
 
-### Step 2: Read Task Files
+```bash
+# Find all tasks/ directories
+find . -type d -name "tasks" -not -path "*/node_modules/*" -not -path "*/archive/*" 2>/dev/null
+```
+
+For each tasks/ directory:
+1. Read `tasks/INDEX.md` to get layer name and prefix
+2. If no INDEX.md, auto-detect from directory structure
+3. Match task prefix to layer
+
+### Step 3: Read Task Files
 
 Read all three task files:
 - `tasks/[PREFIX]-[N]/PRD.md` - Requirements and acceptance criteria
@@ -91,18 +95,18 @@ Read all three task files:
 ## Examples
 
 ```
-/backlog:read I-5
+/backlog:read P-5
 ```
 
 Output:
 ```markdown
-# Task I-5: Protocol DETF (CHIR) System
+# Task P-5: Example Feature
 
-**Layer:** IndexedEx
+**Layer:** [Auto-detected]
 **Status:** 🚀 in_progress
-**Worktree:** feature/protocol-detf
+**Worktree:** feature/example
 **Created:** 2026-01-05
-**Dependencies:** I-3, I-4
+**Dependencies:** P-3, P-4
 
 ---
 

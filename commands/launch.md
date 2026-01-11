@@ -15,20 +15,26 @@ Create a git worktree and launch an agent for a specific task.
 ### Step 1: Parse Task ID
 
 Extract the task ID from arguments. Expected formats:
-- `I-5` (full ID)
-- `5` (assumes current layer prefix)
-- `C-3` (Crane task)
-- `D-2` (daosys task)
+- `[PREFIX]-N` (full ID with prefix, e.g., `P-5`)
+- `N` (number only - assumes current layer prefix)
 
-Determine the layer and task directory:
+### Step 2: Detect Layer from Prefix
 
-| Prefix | Layer | Tasks Directory |
-|--------|-------|-----------------|
-| I | IndexedEx | `tasks/` |
-| D | daosys | `lib/daosys/tasks/` |
-| C | Crane | `lib/daosys/lib/crane/tasks/` |
+Dynamically discover layers and their prefixes:
 
-### Step 2: Verify Task Exists
+```bash
+# Find all tasks/ directories
+find . -type d -name "tasks" -not -path "*/node_modules/*" -not -path "*/archive/*" 2>/dev/null
+```
+
+For each tasks/ directory:
+1. Read `tasks/INDEX.md` to get layer name and prefix
+2. If no INDEX.md, auto-detect from directory structure
+3. Match task prefix to layer
+
+Build prefix-to-path mapping dynamically from discovered layers.
+
+### Step 3: Verify Task Exists
 
 Check that the task directory exists:
 
@@ -156,6 +162,6 @@ Then run: /backlog:complete [PREFIX]-[N]
 ## Notes
 
 - Task IDs are permanent (never renumbered)
-- For Crane tasks, worktree in crane submodule directory
+- For submodule layer tasks, worktree created in the submodule directory
 - Tasks are tracked in tasks/INDEX.md
 - Agent updates PROGRESS.md as it works

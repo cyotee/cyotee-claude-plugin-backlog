@@ -47,7 +47,7 @@ Add to an "Archived" section at the bottom of INDEX.md:
 
 | # | Title | Completed | Review Verdict |
 |---|-------|-----------|----------------|
-| I-1 | Feature Name | 2026-01-10 | ✅ Pass |
+| [P]-1 | Feature Name | 2026-01-10 | ✅ Pass |
 ```
 
 ### Step 5: Clean Up Worktree (if exists)
@@ -73,8 +73,8 @@ Archived 2 tasks to tasks/archive/:
 
 | Task | Title | Review Verdict |
 |------|-------|----------------|
-| I-1 | Feature Name | ✅ Pass |
-| I-2 | Another Feature | ✅ Pass with notes |
+| [P]-1 | Feature Name | ✅ Pass |
+| [P]-2 | Another Feature | ✅ Pass with notes |
 
 ## Worktree Cleanup Needed
 
@@ -89,15 +89,15 @@ The following worktrees should be removed:
 
 | # | Title | Status |
 |---|-------|--------|
-| I-3 | Pending Feature | 🆕 pending |
-| I-5 | In Progress Feature | 🚀 in_progress |
+| [P]-3 | Pending Feature | 🆕 pending |
+| [P]-5 | In Progress Feature | 🚀 in_progress |
 ```
 
 ## Arguments Reference
 
 | Argument | Description |
 |----------|-------------|
-| `<task-id>` | Specific task to archive (e.g., I-5) |
+| `<task-id>` | Specific task to archive (e.g., P-5) |
 | `--all` | Archive all tasks with status=complete |
 
 ## Error Handling

@@ -161,7 +161,7 @@ git wt -d [branch-name]
 
 | Argument | Description |
 |----------|-------------|
-| `<task-id>` | Task ID (e.g., I-5, C-3) |
+| `<task-id>` | Task ID (e.g., P-5, [PREFIX]-N) |
 | `--push` | Push main to origin after completion |
 | `--no-rebase` | Skip rebase (use if already rebased) |
 
