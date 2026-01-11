@@ -100,15 +100,21 @@ Finalize a completed task by rebasing onto main, fast-forwarding main, updating 
 Run from the main worktree (or any directory outside this worktree):
 
 ```bash
+# Preferred: Use the plugin's submodule-aware removal script
+"${CLAUDE_PLUGIN_ROOT}/scripts/wt-remove.sh" <branch-name> <repo-root>
+```
+
+Or using git-wt:
+```bash
 git wt -d <branch-name>
 ```
 
-Or manually:
+Or manually (if scripts not available):
 ```bash
 cd <parent-directory>
 rm -rf <worktree-path>
 git worktree prune
-git branch -d <branch-name>
+git branch -D <branch-name>
 ```
 
 ## Next Steps

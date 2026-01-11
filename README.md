@@ -267,9 +267,48 @@ The `/backlog:launch` and `/backlog:complete` commands maintain a status table i
 
 ---
 
+## Scripts
+
+The plugin includes submodule-aware worktree management scripts in `scripts/`:
+
+### `wt-create.sh`
+
+Creates a worktree with proper submodule initialization:
+
+```bash
+"${CLAUDE_PLUGIN_ROOT}/scripts/wt-create.sh" <branch-name> [repo-root]
+```
+
+**Features:**
+- Creates worktree for new or existing branch
+- Attempts `git submodule update --init --recursive`
+- Falls back to copying submodules from main repo if git init fails
+- Handles nested submodules (repo → daosys → crane)
+
+### `wt-remove.sh`
+
+Removes a worktree safely (handles submodules):
+
+```bash
+"${CLAUDE_PLUGIN_ROOT}/scripts/wt-remove.sh" <branch-name> [repo-root]
+```
+
+**Features:**
+- Cleans stale `.lock` files before removal
+- Uses `--force` flag (required for submodule worktrees)
+- Prunes worktree references
+- Deletes the branch
+
+**Why scripts instead of `git wt -d`?**
+
+1. Worktrees with submodules can't be removed without `--force`
+2. Submodule pointers can become corrupt (pointing to deleted commits)
+3. Lock files cause "Another git process" errors
+4. Nested submodules need fallback copying when git init fails
+
 ## Requirements
 
-- **git-wt**: Git worktree helper script
+- **git-wt**: Git worktree helper script (optional, scripts provide alternative)
 - **UNIFIED_PLAN.md**: Task backlog file
 
 ## Workflow Integration

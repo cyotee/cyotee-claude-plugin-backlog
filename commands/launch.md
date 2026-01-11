@@ -23,10 +23,18 @@ Create a git worktree and PROMPT.md for a task, ready for agent execution.
 
 4. **Get branch name** from the task's "Worktree:" field.
 
-5. **Create the worktree:**
+5. **Create the worktree** using the submodule-aware script:
+   ```bash
+   # Use the plugin's wt-create script (handles submodules)
+   "${CLAUDE_PLUGIN_ROOT}/scripts/wt-create.sh" <branch-name> <repo-root>
+   ```
+
+   If the script is not available, fall back to:
    ```bash
    cd <appropriate-location>
    git wt <branch-name>
+   # Then manually init submodules if needed:
+   git submodule update --init --recursive
    ```
 
 6. **Write PROMPT.md** in the worktree root containing:
