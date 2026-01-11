@@ -1,7 +1,7 @@
 {
   "name": "backlog",
-  "description": "Manage tasks/ directory - status, launch, complete, prune worktrees",
-  "version": "1.2.0",
+  "description": "Manage tasks/ directory with memory-enabled agent launching - status, launch (with PROMPT.md generation), complete, prune worktrees",
+  "version": "1.3.0",
   "author": {
     "name": "cyotee"
   }
