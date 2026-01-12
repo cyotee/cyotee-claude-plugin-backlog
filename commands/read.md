@@ -6,126 +6,122 @@ allowed-tools: Read, Glob, Grep
 
 # Read Task
 
-Display the full content of a specific task from the tasks/ directory.
+Display the full content of a specific task from its task directory.
 
 **Task to read:** $ARGUMENTS
 
 ## Instructions
 
-### Step 1: Parse Task ID
+1. **Extract task ID** from arguments (e.g., "CRANE-003", "IDX-007").
 
-Extract the task ID from arguments. Expected formats:
-- `[PREFIX]-N` (full ID with prefix, e.g., `P-5`)
-- `N` (number only - assumes current layer prefix)
+2. **Find task directory:**
+   ```bash
+   # Find task directory matching the ID
+   ls -d tasks/${TASK_ID}-* 2>/dev/null
+   ```
 
-### Step 2: Detect Layer from Prefix
+3. **If task not found:**
+   ```
+   Task {TASK_ID} not found.
 
-Dynamically discover layers and their prefixes:
+   Available tasks:
+   - {PREFIX}-001: {Title}
+   - {PREFIX}-002: {Title}
+   ...
 
-```bash
-# Find all tasks/ directories
-find . -type d -name "tasks" -not -path "*/node_modules/*" -not -path "*/archive/*" 2>/dev/null
+   Use /backlog to see all tasks.
+   ```
+
+4. **Read task files:**
+   - `tasks/{ID}-{name}/TASK.md` - Requirements
+   - `tasks/{ID}-{name}/PROGRESS.md` - Implementation progress (if exists)
+   - `tasks/{ID}-{name}/REVIEW.md` - Review notes (if exists)
+
+5. **Display formatted output:**
+
 ```
+═══════════════════════════════════════════════════════════════════
+ TASK: {PREFIX}-{NNN} - {Title}
+═══════════════════════════════════════════════════════════════════
 
-For each tasks/ directory:
-1. Read `tasks/INDEX.md` to get layer name and prefix
-2. If no INDEX.md, auto-detect from directory structure
-3. Match task prefix to layer
-
-### Step 3: Read Task Files
-
-Read all three task files:
-- `tasks/[PREFIX]-[N]/PRD.md` - Requirements and acceptance criteria
-- `tasks/[PREFIX]-[N]/PROGRESS.md` - Progress log
-- `tasks/[PREFIX]-[N]/REVIEW.md` - Review status (if started)
-
-### Step 3: Display Task Summary
-
-```markdown
-# Task [PREFIX]-[N]: [Title]
-
-**Layer:** [from frontmatter]
-**Status:** [from frontmatter]
-**Worktree:** [from frontmatter]
-**Created:** [from frontmatter]
-**Dependencies:** [from frontmatter]
+**Status:** {Status from TASK.md}
+**Dependencies:** {Dependencies or "None"}
+**Worktree:** {Worktree branch or "Not started"}
+**Directory:** tasks/{PREFIX}-{NNN}-{kebab-name}/
 
 ---
 
-## PRD Summary
+## Requirements (TASK.md)
 
-[First section of PRD.md - Description]
-
-## Acceptance Criteria
-
-[Checklist from User Stories]
-
-## Current Progress
-
-**Last checkpoint:** [from PROGRESS.md header]
-**Next step:** [from PROGRESS.md header]
-**Build status:** [from PROGRESS.md]
-**Test status:** [from PROGRESS.md]
-
-## Recent Progress Entries
-
-[Last 3 entries from PROGRESS.md]
-
-## Review Status
-
-**Verdict:** [from REVIEW.md frontmatter or "Not reviewed"]
-**Reviewer:** [from REVIEW.md frontmatter or "Pending"]
+{Full content of TASK.md}
 
 ---
 
-## Quick Actions
+## Progress (PROGRESS.md)
 
-- View full PRD: `cat tasks/[PREFIX]-[N]/PRD.md`
-- View progress: `cat tasks/[PREFIX]-[N]/PROGRESS.md`
-- Launch agent: `/backlog:launch [PREFIX]-[N]`
-- Complete task: `/backlog:complete [PREFIX]-[N]`
+**Last checkpoint:** {Last checkpoint summary}
+
+{Latest session log entry or "No progress recorded yet"}
+
+---
+
+## Review (REVIEW.md)
+
+**Status:** {Review status or "Not yet reviewed"}
+
+{Review summary or "No review yet"}
+
+═══════════════════════════════════════════════════════════════════
+
+## Actions
+
+- To launch agent: /backlog:launch {PREFIX}-{NNN}
+- To review: /backlog:review {PREFIX}-{NNN}
+- To complete: /backlog:complete {PREFIX}-{NNN}
 ```
+
+## Output Sections
+
+### Requirements
+Full content of TASK.md including:
+- Description
+- User stories
+- Acceptance criteria
+- Files to create/modify
+- Inventory check
+- Completion criteria
+
+### Progress
+From PROGRESS.md:
+- Current checkpoint status
+- Latest session log entry
+- Build/test status
+
+### Review
+From REVIEW.md (if exists):
+- Review status
+- Number of findings
+- Recommendations
 
 ## Error Handling
 
-- **No task ID provided:** Show usage: `/backlog:read <task-id>`
-- **Task doesn't exist:** Show "Task [ID] not found" and list available tasks
-- **Tasks directory missing:** Suggest running `/design:init`
+- **No task ID provided:** "Usage: /backlog:read <task-id> (e.g., /backlog:read CRANE-003)"
+- **Task doesn't exist:** Show available task IDs from tasks/INDEX.md
+- **No tasks/ directory:** "Run /design:init to set up task management"
+- **Missing TASK.md:** "Task directory exists but TASK.md is missing"
 
 ## Examples
 
-```
-/backlog:read P-5
-```
+```bash
+# Read task by ID
+/backlog:read CRANE-003
 
-Output:
-```markdown
-# Task P-5: Example Feature
-
-**Layer:** [Auto-detected]
-**Status:** 🚀 in_progress
-**Worktree:** feature/example
-**Created:** 2026-01-05
-**Dependencies:** P-3, P-4
-
----
-
-## PRD Summary
-
-Implement the Protocol DETF system (CHIR token) with integrated fee distribution...
-
-## Current Progress
-
-**Last checkpoint:** Interfaces Complete (2026-01-10 15:01)
-**Next step:** Implement ProtocolDETFRepo.sol
-**Build status:** ✅ Passing
-**Test status:** ⏳ No tests yet
-
-...
+# Read task by full directory name
+/backlog:read CRANE-003-uniswap-v4-utils
 ```
 
 ## Notes
 
+- Task IDs are permanent and never renumbered
 - This is a read-only command - it does not modify any files
-- Use `/backlog:launch [ID]` to create a worktree and start working
-- Use `/backlog:status` to see all tasks
+- Use `/backlog:launch <ID>` to create a worktree and start working on a task

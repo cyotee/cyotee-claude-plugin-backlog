@@ -1,61 +1,91 @@
 ---
-description: Display task status summary (alias for /backlog:status)
+description: Display task status summary from tasks/INDEX.md
 ---
 
 # Backlog Status
 
-Display a summary of all tasks from the tasks/ directory. This is an alias for `/backlog:status`.
+Display a summary table of all tasks from tasks/INDEX.md.
 
 ## Instructions
 
-See `/backlog:status` for full documentation.
+1. **Load configuration:**
+   ```bash
+   cat design.yaml 2>/dev/null
+   ```
+   Extract `repo_prefix` and `repo_name`.
 
-### Quick Reference
+2. **Find tasks/INDEX.md** in current working directory.
 
-1. **Detect layers** by scanning for tasks/ directories
-2. **Read tasks/INDEX.md** or scan task directories for each layer
-3. **Display status table** with all tasks
-4. **Show summary counts** and recommended next task
+3. **If not found or empty:** Report that no backlog is defined:
+   ```
+   No backlog defined.
 
-## Quick Status Check
+   To create a backlog:
+   1. Run /design:init to create the tasks/ directory structure
+   2. Run /design to create your first task
+   ```
 
-```bash
-# List all task directories
-ls -d tasks/*/
-
-# Check INDEX.md
-cat tasks/INDEX.md
-```
-
-## Example Output
+4. **If found, read and display the contents** with formatted output:
 
 ```
-# Backlog Status - [LAYER_NAME]
+═══════════════════════════════════════════════════════════════════
+ BACKLOG STATUS: {REPO_NAME}
+═══════════════════════════════════════════════════════════════════
 
-| # | Title | Status | Worktree | Dependencies | Created |
-|---|-------|--------|----------|--------------|---------|
-| [P]-1 | Feature One | ✅ complete | - | - | 2026-01-05 |
-| [P]-2 | Feature Two | 🚀 in_progress | `feature/two` | [P]-1 | 2026-01-08 |
-| [P]-3 | Feature Three | 🆕 pending | - | [P]-2 | 2026-01-10 |
+| ID | Title | Status | Dependencies | Worktree |
+|----|-------|--------|--------------|----------|
+| {PREFIX}-001 | ... | Complete | - | - |
+| {PREFIX}-002 | ... | In Progress | - | feature/... |
+| {PREFIX}-003 | ... | Ready | {PREFIX}-001 | - |
 
 ## Summary
 
-- ✅ Complete: 1
-- 🚀 In Progress: 1
-- 📋 Review: 0
-- 🆕 Pending: 1
-- ❌ Blocked: 0
+- Complete: N
+- In Progress: N
+- In Review: N
+- Ready: N
+- Blocked: N
 
-## Recommended Next
+## Ready for Agent
 
-Start with: [P]-3 (after [P]-2 completes)
+Tasks that can be started:
+- {PREFIX}-003: {Title}
+- {PREFIX}-004: {Title}
+
+## Blocked
+
+Tasks waiting on dependencies:
+- {PREFIX}-005: Waiting on {PREFIX}-003
+
+## Next Recommended
+
+{PREFIX}-003: {Title} - no dependencies, ready to start
+
+═══════════════════════════════════════════════════════════════════
 ```
+
+5. **Show summary counts:**
+   - Complete tasks
+   - In Progress tasks
+   - In Review tasks
+   - Ready tasks (no blockers)
+   - Blocked tasks
+
+6. **Recommend next task** to work on (prefer tasks with no dependencies).
 
 ## Related Commands
 
-- `/backlog:status` - Full status (same as /backlog)
-- `/backlog:read <id>` - View specific task details
-- `/backlog:launch <id>` - Launch agent for a task
-- `/backlog:complete <id>` - Mark task ready for review
+- `/backlog:read <ID>` - Read full task details
+- `/backlog:launch <ID>` - Launch agent worktree for a task
+- `/backlog:review <ID>` - Transition task to review mode
+- `/backlog:complete <ID>` - Complete and merge a task
 - `/backlog:prune` - Archive completed tasks
-- `/design:task` - Create a new task
+- `/backlog:list` - List active worktrees
+- `/design` - Create a new task
+- `/design:review` - Review task definitions
+
+## Error Handling
+
+- **No tasks/ directory:** "Run /design:init to set up task management"
+- **No design.yaml:** "Run /design:init to configure the repository"
+- **Empty INDEX.md:** "No tasks defined. Use /design to create your first task"

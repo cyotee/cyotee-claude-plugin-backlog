@@ -1,180 +1,232 @@
 ---
-description: Complete a task - update status, prepare for review, and cleanup worktree
-argument-hint: <task-id> [--push] [--no-rebase]
+description: Complete a task - cleanup, rebase onto local main, and merge
+argument-hint: <task-id> [--push]
 allowed-tools: Read, Write, Edit, Bash, Glob, Grep, AskUserQuestion
 ---
 
-# Complete Task
+# Complete Task Worktree
 
-Finalize a completed task by updating status, rebasing onto main, and preparing for review.
+Finalize a completed task by cleaning up worktree-specific files, rebasing onto local main, and updating task status.
 
 **Arguments:** $ARGUMENTS
 
 ## Instructions
 
-### Step 1: Verify Worktree Context
+### Phase 1: Verify Context
 
-```bash
-git branch --show-current
-git worktree list
-```
-
-- Confirm we're in a feature branch worktree, NOT main
-- If on main, abort: "This command must be run from a feature worktree"
-
-### Step 2: Determine Task ID
-
-- If task ID provided in arguments, use it
-- If NO task ID provided, infer from branch name or use AskUserQuestion:
-  ```
-  Question: "Which task is being completed?"
-  Header: "Task"
-  Options: List tasks with status=in_progress
-  ```
-
-### Step 3: Read Task PRD
-
-Read `tasks/[PREFIX]-[N]/PRD.md` to get:
-- Task title
-- Current status
-- Acceptance criteria
-
-### Step 4: Check for Uncommitted Changes
-
-```bash
-git status --porcelain
-```
-
-If uncommitted changes exist, abort: "Uncommitted changes detected. Please commit or stash."
-
-### Step 5: Verify Completion Criteria
-
-Prompt agent to verify:
-- All acceptance criteria in PRD.md are checked
-- Tests pass (`forge test`)
-- Build succeeds (`forge build`)
-
-If not all criteria met, warn but allow proceeding.
-
-### Step 6: Update PROGRESS.md
-
-Add completion entry (at top, reverse chronological):
-
-```markdown
-### [Date Time] - Task Complete
-
-**Summary:** Implementation complete, ready for review
-
-**Final status:**
-- All acceptance criteria: ✅
-- Build: ✅ Passing
-- Tests: ✅ Passing
-
-**Notes for reviewer:**
-[Any implementation notes]
-```
-
-### Step 7: Update PRD.md Status
-
-Update frontmatter:
-
-```yaml
-status: review
-```
-
-Add notes section if not present:
-
-```markdown
-## Notes for Reviewer
-
-[Agent's implementation notes, decisions made, caveats]
-```
-
-### Step 8: Rebase onto Main (unless --no-rebase)
-
-```bash
-git fetch origin main
-git rebase origin/main
-```
-
-If conflicts, show resolution steps and abort.
-
-### Step 9: Fast-Forward Main
-
-```bash
-git branch -f main HEAD
-```
-
-### Step 10: Push (if --push)
-
-```bash
-git push origin main
-```
-
-### Step 11: Update INDEX.md
-
-Update the task's status in `tasks/INDEX.md`:
-
-```markdown
-| [PREFIX]-[N] | [Title] | 📋 review | ... |
-```
-
-### Step 12: Output Completion Summary
-
-```
-# Task [PREFIX]-[N] Complete
-
-**Title:** [Title]
-**Status:** 📋 review
-**Branch:** [branch-name]
-**Commits:** [count] rebased onto main
-
-## Next Steps
-
-1. **Request Review:**
-   Another agent should review using:
+1. **Verify worktree context:**
+   ```bash
+   git branch --show-current
+   git worktree list
    ```
-   /backlog:read [PREFIX]-[N]
-   ```
-   Then update `tasks/[PREFIX]-[N]/REVIEW.md`
+   - Confirm we're in a feature branch worktree, NOT main
+   - If on main: "This command must be run from a feature worktree, not main"
 
-2. **After Review Passes:**
+2. **Determine task ID:**
+   - If task ID provided in arguments, use it
+   - If NOT provided, use AskUserQuestion to select from active tasks
+
+3. **Find task directory:**
+   ```bash
+   ls -d tasks/${TASK_ID}-* 2>/dev/null
    ```
-   /backlog:prune [PREFIX]-[N]
+
+4. **Check for uncommitted changes:**
+   ```bash
+   git status --porcelain
    ```
+   - If uncommitted changes: "Uncommitted changes detected. Please commit or stash before completing."
+
+### Phase 2: Cleanup Worktree-Specific Files
+
+1. **Delete PROMPT.md** (task-specific agent instructions):
+   ```bash
+   rm -f PROMPT.md
+   ```
+
+2. **Delete state file** (iteration tracking):
+   ```bash
+   rm -f .claude/backlog-agent.local.md
+   ```
+
+3. **Clean up .claude directory** if empty:
+   ```bash
+   rmdir .claude 2>/dev/null || true
+   ```
+
+4. **Commit cleanup:**
+   ```bash
+   git add -A
+   git commit -m "chore: cleanup task files before merge" --allow-empty
+   ```
+
+### Phase 3: Merge to Main
+
+1. **Rebase onto LOCAL main:**
+   ```bash
+   git rebase main
+   ```
+   - If rebase conflicts: Show resolution steps and abort
+
+2. **Fast-forward main to current HEAD:**
+   ```bash
+   git branch -f main HEAD
+   ```
+
+3. **Push main to origin** (if `--push` specified):
+   ```bash
+   git push origin main
+   ```
+
+### Phase 4: Update Task Status
+
+1. **Update tasks/INDEX.md** status to "Complete":
+   - Note: INDEX.md is in the worktree, changes will be on main after fast-forward
+   ```bash
+   # Edit INDEX.md to change status from "In Progress" to "Complete"
+   ```
+
+2. **Commit INDEX.md change:**
+   ```bash
+   git add tasks/INDEX.md
+   git commit -m "chore: mark task ${TASK_ID} as complete"
+   git branch -f main HEAD
+   ```
+
+3. **Push if requested:**
+   ```bash
+   if [ "$PUSH" = "true" ]; then
+     git push origin main
+   fi
+   ```
+
+### Phase 5: Output Summary
+
+```
+═══════════════════════════════════════════════════════════════════
+ TASK COMPLETED: {PREFIX}-{NNN}
+═══════════════════════════════════════════════════════════════════
+
+## Summary
+
+- Task: {PREFIX}-{NNN} - {Title}
+- Branch: {branch-name}
+- Commits rebased onto main: {count}
+- Main updated to: {short-sha}
+- Pushed to origin: {yes/no}
+- INDEX.md updated: yes
+
+## Files Removed
+
+- PROMPT.md (task assignment)
+- .claude/backlog-agent.local.md (iteration state)
 
 ## Cleanup Required
 
-Exit this session and run from main worktree:
+Run from the main worktree (or any directory outside this worktree):
 
-```bash
-./scripts/wt-remove.sh [branch-name]
-```
+### Preferred: Use plugin script
 
-Or:
-```bash
-git wt -d [branch-name]
-```
+"${CLAUDE_PLUGIN_ROOT}/scripts/wt-remove.sh" {branch-name}
+
+### Or using git-wt:
+
+git wt -d {branch-name}
+
+### Or manually:
+
+cd {parent-directory}
+rm -rf {worktree-path}
+git worktree prune
+git branch -D {branch-name}
+
+## Next Steps
+
+1. Exit this Claude session
+2. Run the cleanup command above
+3. Use /backlog:prune to archive completed tasks
+
+═══════════════════════════════════════════════════════════════════
 ```
 
 ## Arguments Reference
 
 | Argument | Description |
 |----------|-------------|
-| `<task-id>` | Task ID (e.g., P-5, [PREFIX]-N) |
-| `--push` | Push main to origin after completion |
-| `--no-rebase` | Skip rebase (use if already rebased) |
+| `<task-id>` | Task ID being completed (e.g., CRANE-003) |
+| `--push` | Push main to origin after merge |
+
+## Rebase Conflict Resolution
+
+If rebase conflicts occur:
+
+```
+Rebase conflicts detected. Please resolve manually:
+
+1. Fix conflicts in the listed files:
+   - {conflicted-file-1}
+   - {conflicted-file-2}
+
+2. Stage resolved files:
+   git add <resolved-files>
+
+3. Continue rebase:
+   git rebase --continue
+
+4. Re-run /backlog:complete
+```
 
 ## Error Handling
 
-- **Not in worktree:** "Run from feature worktree, not main"
-- **Uncommitted changes:** "Commit or stash first"
-- **Rebase conflicts:** Show resolution steps
-- **Task not found:** Show available tasks
-- **Criteria not met:** Warn but allow proceeding
+- **Not in worktree:** "This command must be run from a feature worktree, not main"
+- **Uncommitted changes:** "Uncommitted changes detected. Please commit or stash before completing."
+- **Rebase conflicts:** Show resolution steps and abort
+- **Push fails:** Show error and suggest manual push
+- **Task not found:** Show available task IDs
+- **Task not in progress:** Warn and ask for confirmation
 
-## Notes
+## Important Notes
 
-- Task moves to `review` status, not `complete`
-- Another agent should review before marking complete
-- Worktree cleanup must be done from outside the worktree
+- **Local main only:** Rebases onto LOCAL main branch, not origin/main
+- **Cannot self-delete:** Agent cannot delete its own worktree while running. Cleanup must be done externally.
+- **Task IDs persist:** Task numbers are never changed or renumbered
+- **PROMPT.md deleted:** Prevents polluting main branch with task-specific files
+
+## Example Session
+
+```bash
+$ /backlog:complete CRANE-003 --push
+
+Verifying worktree context...
+  Current branch: feature/uniswap-v4-utils
+  Worktree: /path/to/crane-wt/feature/uniswap-v4-utils
+
+Task: CRANE-003 - Uniswap V4 Utils
+
+Checking for uncommitted changes...
+  Working tree clean
+
+Cleaning up worktree-specific files...
+  Removed: PROMPT.md
+  Removed: .claude/backlog-agent.local.md
+  Committed: chore: cleanup task files before merge
+
+Rebasing onto local main...
+  Successfully rebased 5 commits
+
+Updating main to current HEAD...
+  main -> abc1234
+
+Pushing main to origin...
+  main -> origin/main
+
+Updating INDEX.md...
+  CRANE-003 status: Complete
+  Committed: chore: mark task CRANE-003 as complete
+
+═══════════════════════════════════════════════════════════════════
+ TASK COMPLETED: CRANE-003
+═══════════════════════════════════════════════════════════════════
+
+...
+```

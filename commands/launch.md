@@ -1,269 +1,249 @@
 ---
 description: Launch agent worktree for a specific task
-argument-hint: <task-id>
-allowed-tools: Read, Write, Edit, Bash, Glob, Grep, AskUserQuestion
+argument-hint: <task-id> [--max-iterations N]
+allowed-tools: Read, Write, Edit, Bash, Glob, Grep
 ---
 
-# Launch Agent for Task
+# Launch Agent Worktree
 
-Create a git worktree, generate PROMPT.md with memory protocol, and provide launch instructions.
+Create a git worktree and PROMPT.md for a task, ready for agent execution.
 
-**Task to launch:** $ARGUMENTS
+**Arguments:** $ARGUMENTS
 
 ## Instructions
 
-### Step 1: Parse Task ID
+### Phase 1: Parse Arguments
 
-Extract the task ID from arguments. Expected formats:
-- `[PREFIX]-N` (full ID with prefix, e.g., `I-5`)
-- `N` (number only - assumes current layer prefix from INDEX.md)
+1. **Extract task ID** from arguments (e.g., "CRANE-003").
 
-### Step 2: Detect Layer and Verify Task
+2. **Extract optional flags:**
+   - `--max-iterations N` - Safety limit for agent iterations (default: 0 = unlimited)
 
-Read `tasks/INDEX.md` to get:
-- Layer name and prefix
-- Verify task exists in index
+### Phase 2: Validate Task
 
-If task not found, show available tasks and exit.
+1. **Find task directory:**
+   ```bash
+   ls -d tasks/${TASK_ID}-* 2>/dev/null
+   ```
 
-### Step 3: Read Task PRD
+2. **If not found:** Show available tasks and abort.
 
-Read `tasks/[PREFIX]-[N]/PRD.md` to get:
-- Task title (from first heading or frontmatter)
-- Worktree name (from frontmatter, e.g., `feature/protocol-detf`)
-- Status
-- Dependencies
-- Brief description (first paragraph after title)
+3. **Read task files:**
+   - `tasks/{ID}-{name}/TASK.md` - Get task details
+   - `tasks/{ID}-{name}/PROGRESS.md` - Check if exists
 
-### Step 4: Check Dependencies
+4. **Check task status:**
+   - If "Complete": Warn and ask for confirmation
+   - If "In Progress": Warn that worktree may already exist
+   - If "Blocked": Show blockers and ask for confirmation
 
-Read PRD frontmatter for dependencies. For each dependency:
-- Read the dependency's PRD.md
-- Check its status
-- If not complete: warn user, ask to continue anyway
+### Phase 3: Prepare Task Files
 
-### Step 5: Determine Worktree State
+1. **Initialize PROGRESS.md** if it doesn't exist or is empty:
+   ```markdown
+   # Progress Log: {PREFIX}-{NNN}
 
-Get the repository name and construct worktree path:
-```bash
-REPO_NAME=$(basename $(git rev-parse --show-toplevel))
-WORKTREE_BASE="../${REPO_NAME}-wt"
-WORKTREE_PATH="${WORKTREE_BASE}/[worktree-name]"
-```
+   ## Current Checkpoint
 
-Check worktree state and handle accordingly:
+   **Last checkpoint:** Not started
+   **Next step:** Read TASK.md and begin implementation
+   **Build status:** ⏳ Not checked
+   **Test status:** ⏳ Not checked
 
-**State A: Worktree does not exist**
-- Will create new worktree
-- Will create fresh PROMPT.md
-- Will create fresh PROGRESS.md (or preserve existing in tasks/ if present)
+   ---
 
-**State B: Worktree exists and is clean**
-- Use AskUserQuestion to ask about PROMPT.md:
-  1. "Review existing for errors, then keep"
-  2. "Regenerate with latest template"
-  3. "Keep existing without review"
-- Preserve existing PROGRESS.md
+   ## Session Log
 
-**State C: Worktree exists with uncommitted changes**
-- Warn user about dirty state
-- Show `git status` summary from worktree
-- Use AskUserQuestion: "Commit changes first", "Continue anyway", or "Abort"
+   ### {TODAY} - Task Launched
 
-**State D: Worktree exists but is behind local main**
-Check if behind:
-```bash
-git -C [worktree-path] rev-list HEAD..main --count
-```
-- If behind, warn user and suggest: `git merge main` (use local main, NOT origin/main)
+   - Task launched via /backlog:launch
+   - Agent worktree created
+   - Ready to begin implementation
+   ```
 
-### Step 6: Create or Verify Worktree
+2. **Commit task files** to ensure worktree will have them:
+   ```bash
+   git add tasks/${TASK_ID}-*/
+   git commit -m "chore: prepare task ${TASK_ID} for agent launch" --allow-empty
+   ```
 
-If worktree doesn't exist:
+### Phase 4: Create Worktree
 
-```bash
-# Use the submodule-aware script if available
-./scripts/wt-create.sh [worktree-name]
+1. **Load configuration:**
+   ```bash
+   cat design.yaml
+   ```
 
-# Or fallback:
-git worktree add ../[repo]-wt/[worktree-name] -b [worktree-name]
-cd ../[repo]-wt/[worktree-name]
-git submodule update --init --recursive
-```
+2. **Determine worktree location:**
+   ```bash
+   REPO_ROOT=$(git rev-parse --show-toplevel)
+   BRANCH="feature/{kebab-name-from-task}"
+   WT_PATH="${REPO_ROOT}-wt/${BRANCH}"
+   ```
 
-### Step 7: Generate PROMPT.md
+3. **Create worktree:**
+   ```bash
+   "${CLAUDE_PLUGIN_ROOT}/scripts/wt-create.sh" "${BRANCH}" "${REPO_ROOT}"
+   ```
 
-Create `PROMPT.md` in the **worktree root** with this template.
+4. **Initialize submodules:**
+   ```bash
+   cd "${WT_PATH}"
+   git submodule update --init --recursive
+   ```
 
-**IMPORTANT:** Replace all placeholders with actual values from the PRD:
-- `[PREFIX]-[N]` with actual task ID (e.g., `I-5`)
-- `[Title]` with actual task title
-- `[task-summary]` with 2-3 sentences from PRD description
-- `[key-requirements]` with bullet list of main acceptance criteria
+### Phase 5: Setup Agent Environment
+
+1. **Create PROMPT.md** in worktree root that **points to** task files:
 
 ```markdown
-# Task [PREFIX]-[N]: [Title]
+# Agent Task Assignment
 
-## Memory Protocol
+**Task:** {PREFIX}-{NNN} - {Title}
+**Repo:** {REPO_NAME}
+**Mode:** Implementation
+**Task Directory:** tasks/{PREFIX}-{NNN}-{kebab-name}/
 
-**On every iteration, you MUST:**
+## Required Reading
 
-1. Read `CLAUDE.md` for project conventions
-2. Read `tasks/[PREFIX]-[N]/PRD.md` for full requirements
-3. Read `tasks/[PREFIX]-[N]/PROGRESS.md` for prior work and context
-4. Update PROGRESS.md after each significant action
+1. `tasks/{PREFIX}-{NNN}-{kebab-name}/TASK.md` - Full requirements
+2. `tasks/{PREFIX}-{NNN}-{kebab-name}/PROGRESS.md` - Prior work and current state
 
-**Progress update format:**
+## Instructions
 
-### [YYYY-MM-DD HH:MM] - [Action Description]
-- Completed: [what you accomplished]
-- Files modified: [list of files]
-- Next: [immediate next step]
-- Blockers: [any issues, or "None"]
+1. Read TASK.md to understand requirements
+2. Read PROGRESS.md to see what's been done
+3. Continue work from where you left off
+4. **Update PROGRESS.md** as you work (newest entries first)
+5. When complete, output: `<promise>TASK_COMPLETE</promise>`
+6. If blocked, output: `<promise>TASK_BLOCKED: [reason]</promise>`
 
-**Context management:**
+## On Context Compaction
 
-If you notice context is getting long (many tool calls, large file reads):
-1. Update PROGRESS.md with detailed current state including:
-   - Exact file and line you're working on
-   - What remains to be done
-   - Any decisions made
-2. Run `/compact`
-3. After compaction, re-read: this file (PROMPT.md), CLAUDE.md, PRD.md, and PROGRESS.md
-4. Continue working from where you left off
+If your context is compacted or you're resuming work:
+1. Re-read this PROMPT.md
+2. Re-read PROGRESS.md for your prior state
+3. Continue from the last recorded progress
 
-## Task Summary
+## Completion Checklist
 
-[task-summary]
-
-## Key Requirements
-
-[key-requirements]
-
-## Completion Criteria
-
-When ALL acceptance criteria in `tasks/[PREFIX]-[N]/PRD.md` are satisfied:
-1. Update PROGRESS.md with final status (mark as ready for review)
-2. Ensure all tests pass: `forge test`
-3. Ensure code compiles: `forge build`
-4. Output: `<promise>TASK_COMPLETE</promise>`
-
-## Files to Read
-
-Start by reading these files in order:
-1. `CLAUDE.md` - Project conventions and patterns
-2. `tasks/[PREFIX]-[N]/PRD.md` - Full requirements
-3. `tasks/[PREFIX]-[N]/PROGRESS.md` - Work log and resumable state
+Before marking complete, verify:
+- [ ] All acceptance criteria in TASK.md are checked
+- [ ] PROGRESS.md has final summary
+- [ ] All tests pass
+- [ ] Build succeeds
 ```
 
-### Step 8: Create or Preserve PROGRESS.md
+2. **Create state file** (if max-iterations specified):
+   ```bash
+   mkdir -p "${WT_PATH}/.claude"
+   ```
 
-**If PROGRESS.md does not exist** in `tasks/[PREFIX]-[N]/`, create it:
+   Write `.claude/backlog-agent.local.md`:
+   ```markdown
+   ---
+   active: true
+   iteration: 1
+   max_iterations: {N or 0}
+   started_at: "{ISO_TIMESTAMP}"
+   task_id: "{TASK_ID}"
+   mode: "implementation"
+   ---
+   ```
 
-```markdown
-# Progress: [PREFIX]-[N] - [Title]
+3. **Update tasks/INDEX.md** status to "In Progress":
+   ```markdown
+   | {PREFIX}-{NNN} | {Title} | In Progress | {Deps} | feature/{name} |
+   ```
 
-**Started:** [YYYY-MM-DD HH:MM]
-**Status:** in_progress
+### Phase 6: Output Launch Instructions
 
-## Checkpoints
-
-Use this section for resumable state after `/compact`:
-
-**Current phase:** Not started
-**Files modified:** None yet
-**Tests passing:** Not checked
-**Next action:** Read PRD.md and begin implementation
-
----
-
-## Work Log
-
-### [YYYY-MM-DD HH:MM] - Agent Session Started
-
-- Worktree: `[worktree-name]`
-- PROMPT.md generated
-- Ready to begin work
-
----
-```
-
-**If PROGRESS.md already exists**, append a new session entry at the TOP of the Work Log section (after the `## Work Log` heading, before existing entries):
-
-```markdown
-### [YYYY-MM-DD HH:MM] - Agent Session Resumed
-
-- Worktree: `[worktree-name]`
-- Resuming from previous session
-- Reading PRD.md and prior progress
-
----
-```
-
-### Step 9: Update Task Status
-
-Update the PRD.md frontmatter to `in_progress` if not already:
-
-```yaml
-status: in_progress
-```
-
-Update INDEX.md status column to match.
-
-### Step 10: Output Launch Instructions
-
-Display to the user:
+Output ready-to-use commands with **absolute paths**:
 
 ```
-================================================================================
-# Task [PREFIX]-[N]: [Title]
-================================================================================
+═══════════════════════════════════════════════════════════════════
+ AGENT READY: {PREFIX}-{NNN} - {Title}
+═══════════════════════════════════════════════════════════════════
 
-**Status:** in_progress
-**Worktree:** [full-worktree-path]
-**Dependencies:** [list or "None"]
+Task files committed and worktree created.
 
-## Launch Commands
+## Step 1: Open a new terminal and run:
 
-Run these commands to start the agent:
+cd {ABSOLUTE_WORKTREE_PATH}
 
-    cd [full-worktree-path]
-    claude --dangerously-skip-permissions
+## Step 2: Start Claude Code:
 
-## Start the Agent
+claude --dangerously-skip-permissions
 
-Once Claude Code is running, enter this command:
+## Step 3: Give Claude this prompt:
 
-    /ralph-loop:ralph-loop "Read PROMPT.md and follow its instructions. This file tells you which other files to read and how to track your progress." --completion-promise "TASK_COMPLETE" --max-iterations 15
+/up:prompt
 
-## Files Created/Updated
+This will read PROMPT.md which directs the agent to:
+- tasks/{PREFIX}-{NNN}-{kebab-name}/TASK.md (requirements)
+- tasks/{PREFIX}-{NNN}-{kebab-name}/PROGRESS.md (progress log)
 
-- PROMPT.md (worktree root) - Agent instructions with memory protocol
-- tasks/[PREFIX]-[N]/PROGRESS.md - Work log and resumable state
+## Stop Hook
 
-## When Complete
+The Stop hook will prevent exit until:
+- Agent outputs <promise>TASK_COMPLETE</promise>
+- Agent outputs <promise>TASK_BLOCKED: [reason]</promise>
+- Max iterations reached ({N or "unlimited"})
 
-The agent will output `<promise>TASK_COMPLETE</promise>` when done.
+Agent will use subscription usage, not API credits.
 
-Then return to this session and run:
-
-    /backlog:complete [PREFIX]-[N]
-
-================================================================================
+═══════════════════════════════════════════════════════════════════
 ```
+
+## Arguments Reference
+
+| Argument | Description |
+|----------|-------------|
+| `<task-id>` | Task ID to launch (e.g., CRANE-003) |
+| `--max-iterations N` | Optional safety limit (default: 0 = unlimited) |
 
 ## Error Handling
 
-- **Task doesn't exist:** Show available tasks from INDEX.md
-- **Worktree creation fails:** Show manual git worktree commands
-- **Submodule init fails:** Suggest copying from main repo
-- **Worktree dirty:** Show status and ask user how to proceed
-- **Behind local main:** Suggest `git merge main` in worktree (not origin/main)
+- **Task doesn't exist:** Show available task IDs
+- **Task already complete:** Warn and ask for confirmation
+- **Worktree already exists:** Show path and ask to continue or abort
+- **Worktree creation fails:** Show error and manual steps
+- **No tasks/ directory:** "Run /design:init first"
+- **Submodule init fails:** Copy from main repo as fallback
 
-## Notes
+## Why Commit Before Worktree?
 
-- One task per worktree, one agent per worktree
-- PROMPT.md lives in worktree root for easy access
-- PROGRESS.md lives in tasks/[ID]/ and is committed with the work
-- Agent uses PROGRESS.md to survive context compaction
-- Task IDs are permanent (never renumbered)
+- Worktree is created from current HEAD
+- If task files aren't committed, worktree won't have them
+- Agent needs TASK.md and PROGRESS.md to exist in the worktree
+
+## Example Session
+
+```bash
+$ /backlog:launch CRANE-003 --max-iterations 20
+
+Finding task CRANE-003...
+  Found: tasks/CRANE-003-uniswap-v4-utils/
+
+Preparing task files...
+  PROGRESS.md initialized
+  Files committed: chore: prepare task CRANE-003 for agent launch
+
+Creating worktree...
+  Branch: feature/uniswap-v4-utils
+  Path: /Users/you/repos/crane-wt/feature/uniswap-v4-utils
+
+Initializing submodules...
+  ✅ Submodules ready
+
+Setting up agent environment...
+  PROMPT.md created
+  State file created (max 20 iterations)
+  INDEX.md updated
+
+═══════════════════════════════════════════════════════════════════
+ AGENT READY: CRANE-003 - Uniswap V4 Utils
+═══════════════════════════════════════════════════════════════════
+
+...
+```

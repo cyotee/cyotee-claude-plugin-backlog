@@ -1,115 +1,122 @@
 ---
 description: Archive completed tasks to tasks/archive/
-argument-hint: [<task-id>] [--all]
 allowed-tools: Read, Write, Edit, Bash, Glob, Grep
 ---
 
-# Prune/Archive Completed Tasks
+# Prune Completed Tasks
 
-Move completed and reviewed tasks to the archive directory.
-
-**Arguments:** $ARGUMENTS
+Move completed task directories to tasks/archive/ and update INDEX.md.
 
 ## Instructions
 
-### Step 1: Identify Tasks to Archive
+1. **Read tasks/INDEX.md** and identify tasks with "Complete" status.
 
-If `--all` specified:
-- Scan all task directories in `tasks/`
-- Find tasks with `status: complete` in PRD.md frontmatter
+2. **If no completed tasks:**
+   ```
+   No completed tasks to archive.
 
-If specific task ID provided:
-- Verify task exists and has `status: complete`
+   Tasks are marked Complete after:
+   1. Implementation finished (TASK_COMPLETE promise)
+   2. Code review passed (REVIEW_COMPLETE promise)
+   3. /backlog:complete merges to main
 
-If no arguments:
-- Show list of archivable tasks and ask which to archive
+   Use /backlog to see task statuses.
+   ```
 
-### Step 2: Verify Review Status
+3. **For each completed task:**
 
-For each task to archive, check `tasks/[PREFIX]-[N]/REVIEW.md`:
-- Must have `verdict: pass` or `verdict: pass_with_notes`
-- If verdict is `needs_work` or `pending`, warn and skip
+   a. **Move task directory to archive:**
+      ```bash
+      mv tasks/${PREFIX}-${NNN}-${name}/ tasks/archive/
+      ```
 
-### Step 3: Move to Archive
+   b. **Update INDEX.md:**
+      - Remove task from "Active Tasks" table
+      - Add to "Archived Tasks" section (or create if missing)
 
-```bash
-mv tasks/[PREFIX]-[N] tasks/archive/[PREFIX]-[N]
+4. **Commit changes:**
+   ```bash
+   git add tasks/
+   git commit -m "chore: archive completed tasks"
+   ```
+
+5. **Show what was archived:**
+
+```
+═══════════════════════════════════════════════════════════════════
+ TASKS ARCHIVED
+═══════════════════════════════════════════════════════════════════
+
+Archived {N} completed tasks:
+
+| Task | Title | Completed |
+|------|-------|-----------|
+| {PREFIX}-001 | V3 Mainnet Fork Tests | 2026-01-05 |
+| {PREFIX}-002 | Slipstream Utils | 2026-01-07 |
+
+Moved to: tasks/archive/
+
+Remaining active tasks: {PREFIX}-003, {PREFIX}-004, {PREFIX}-005
+
+Committed: chore: archive completed tasks
+
+═══════════════════════════════════════════════════════════════════
 ```
 
-### Step 4: Update INDEX.md
+## Archive Structure
 
-Remove the archived task from the active tasks table.
+After archiving:
 
-Add to an "Archived" section at the bottom of INDEX.md:
+```
+tasks/
+├── INDEX.md                    # Active tasks only
+├── TEMPLATE.md
+├── {PREFIX}-003-active-task/   # Still active
+├── {PREFIX}-004-another-task/  # Still active
+└── archive/
+    ├── {PREFIX}-001-completed/ # Archived
+    └── {PREFIX}-002-completed/ # Archived
+```
+
+## INDEX.md Archive Section
+
+Add to bottom of INDEX.md:
 
 ```markdown
 ## Archived Tasks
 
-| # | Title | Completed | Review Verdict |
-|---|-------|-----------|----------------|
-| [P]-1 | Feature Name | 2026-01-10 | ✅ Pass |
+| ID | Title | Completed | Location |
+|----|-------|-----------|----------|
+| {PREFIX}-001 | V3 Mainnet Fork Tests | 2026-01-05 | archive/{PREFIX}-001-v3-mainnet-fork-tests/ |
+| {PREFIX}-002 | Slipstream Utils | 2026-01-07 | archive/{PREFIX}-002-slipstream-utils/ |
 ```
 
-### Step 5: Clean Up Worktree (if exists)
+## Selective Archive
 
-Check if worktree still exists:
+To archive only specific tasks (future enhancement):
 
 ```bash
-git worktree list | grep [worktree-name]
+/backlog:prune {PREFIX}-001 {PREFIX}-002
 ```
 
-If exists, provide cleanup command:
-
-```bash
-./scripts/wt-remove.sh [worktree-name]
-```
-
-### Step 6: Output Summary
-
-```
-# Tasks Archived
-
-Archived 2 tasks to tasks/archive/:
-
-| Task | Title | Review Verdict |
-|------|-------|----------------|
-| [P]-1 | Feature Name | ✅ Pass |
-| [P]-2 | Another Feature | ✅ Pass with notes |
-
-## Worktree Cleanup Needed
-
-The following worktrees should be removed:
-
-```bash
-./scripts/wt-remove.sh feature/name
-./scripts/wt-remove.sh feature/other
-```
-
-## Remaining Active Tasks
-
-| # | Title | Status |
-|---|-------|--------|
-| [P]-3 | Pending Feature | 🆕 pending |
-| [P]-5 | In Progress Feature | 🚀 in_progress |
-```
-
-## Arguments Reference
-
-| Argument | Description |
-|----------|-------------|
-| `<task-id>` | Specific task to archive (e.g., P-5) |
-| `--all` | Archive all tasks with status=complete |
+Currently archives ALL completed tasks.
 
 ## Error Handling
 
-- **No completed tasks:** "No tasks ready to archive"
-- **Task not reviewed:** "Task [ID] needs review before archiving"
-- **Task not found:** Show available tasks
-- **Archive directory missing:** Create it
+- **No completed tasks:** Inform user, no changes made
+- **No tasks/ directory:** "Run /design:init to set up task management"
+- **Archive directory missing:** Create it automatically
+- **Move fails:** Show error, suggest manual intervention
 
 ## Notes
 
-- Task directories are preserved in archive for historical reference
-- Task numbers are never reused
-- Review verdicts are preserved in archived REVIEW.md
-- Worktree cleanup is separate from task archiving
+- Task IDs are never renumbered after archival
+- Archived tasks retain all files (TASK.md, PROGRESS.md, REVIEW.md)
+- Use `/backlog:read` with full path to read archived tasks
+- Archive can be deleted manually if not needed
+
+## Related Commands
+
+- `/backlog` - See all task statuses
+- `/backlog:complete` - Mark task as complete
+- `/design:from-review` - Create new tasks from review findings
