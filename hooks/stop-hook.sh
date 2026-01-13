@@ -11,7 +11,7 @@ HOOK_INPUT=$(cat)
 
 # Helper function to allow exit with proper JSON output
 allow_exit() {
-  echo '{"decision": "allow"}'
+  echo '{"decision": "approve"}'
   exit 0
 }
 
