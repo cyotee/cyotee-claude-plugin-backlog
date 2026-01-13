@@ -79,7 +79,12 @@ LAST_OUTPUT=$(echo "$LAST_LINE" | jq -r '
 ' 2>/dev/null || echo "")
 
 # Check for completion promises using perl for multiline support
-PROMISE_TEXT=$(echo "$LAST_OUTPUT" | perl -0777 -pe 's/.*?<promise>(.*?)<\/promise>.*/$1/s; s/^\s+|\s+$//g' 2>/dev/null || echo "")
+# Note: perl regex returns entire input if no match, so we check for actual tag presence first
+if echo "$LAST_OUTPUT" | grep -q '<promise>'; then
+  PROMISE_TEXT=$(echo "$LAST_OUTPUT" | perl -0777 -pe 's/.*?<promise>(.*?)<\/promise>.*/$1/s; s/^\s+|\s+$//g' 2>/dev/null || echo "")
+else
+  PROMISE_TEXT=""
+fi
 
 # Check for TASK_COMPLETE
 if [[ "$PROMISE_TEXT" = "TASK_COMPLETE" ]]; then
@@ -102,6 +107,31 @@ if [[ "$PROMISE_TEXT" = "TASK_BLOCKED" ]] || [[ "$PROMISE_TEXT" == TASK_BLOCKED:
     REASON="${PROMISE_TEXT#TASK_BLOCKED:}"
     echo "   Reason: $REASON" >&2
   fi
+  [[ -f "$STATE_FILE" ]] && rm "$STATE_FILE"
+  allow_exit
+fi
+
+# Fallback: Check for Phase 1 completion indicators in the output text
+# This catches cases where the agent doesn't output the exact promise tag format
+if echo "$LAST_OUTPUT" | grep -qiE "phase.?1.*(complete|done|finished)" && \
+   echo "$LAST_OUTPUT" | grep -qiE "main.?worktree|switch.*main|exit.*session|phase.?2"; then
+  echo "✅ Phase 1 complete detected - allowing exit for worktree switch" >&2
+  [[ -f "$STATE_FILE" ]] && rm "$STATE_FILE"
+  allow_exit
+fi
+
+# Fallback: Check for "Pending Merge" status indicator (Phase 1 sets this)
+if echo "$LAST_OUTPUT" | grep -qiE "pending.?merge" && \
+   echo "$LAST_OUTPUT" | grep -qiE "phase.?2|main.?worktree|proceed.*main|switch.*main"; then
+  echo "✅ Phase 1 complete detected (Pending Merge) - allowing exit for worktree switch" >&2
+  [[ -f "$STATE_FILE" ]] && rm "$STATE_FILE"
+  allow_exit
+fi
+
+# Fallback: Check for review mode configuration completion
+if echo "$LAST_OUTPUT" | grep -qi "review mode.*configured\|configured.*review mode" && \
+   echo "$LAST_OUTPUT" | grep -qi "new session\|start.*session\|exit.*session"; then
+  echo "✅ Review mode configured - allowing exit for new session" >&2
   [[ -f "$STATE_FILE" ]] && rm "$STATE_FILE"
   allow_exit
 fi

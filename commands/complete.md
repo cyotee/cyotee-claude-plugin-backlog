@@ -140,6 +140,11 @@ This will:
 
 **Context:** Running from main branch worktree
 
+> **CRITICAL WORKFLOW NOTE:** In Phase 2, do NOT check task status from the local `tasks/INDEX.md` on main. The "Pending Merge" status exists ONLY on the worktree branch (committed during Phase 1). You MUST:
+> 1. Find the worktree branch first
+> 2. Use `git show BRANCH:tasks/INDEX.md` to read status from the worktree branch
+> 3. Only proceed if status is "Pending Merge" on the worktree branch
+
 ### Step 1: Verify Context
 
 ```bash
@@ -157,32 +162,32 @@ fi
 ### Step 2: Determine Task ID
 
 - If task ID provided in arguments, use it
-- If NOT provided, use AskUserQuestion to select from "Pending Merge" tasks
+- If NOT provided, use AskUserQuestion to select from tasks with active worktrees
 
-### Step 3: Verify Task Status
+### Step 3: Find Worktree Branch
+
+**IMPORTANT:** Find the branch FIRST because we need to check status from the worktree branch, not main.
 
 ```bash
-# Check task is marked "Pending Merge"
-TASK_STATUS=$(grep "| ${TASK_ID} |" tasks/INDEX.md | awk -F'|' '{print $4}' | xargs)
+# List all worktrees and find one matching the task ID pattern
+WORKTREE_INFO=$(git worktree list --porcelain | grep -A2 "worktree.*${TASK_ID}\|branch.*${TASK_ID}" | head -3)
 
-if [[ "$TASK_STATUS" != "Pending Merge" ]]; then
-  echo "ERROR: Task ${TASK_ID} is not ready for merge"
-  echo "Current status: ${TASK_STATUS}"
-  echo ""
-  echo "Task must be 'Pending Merge' status"
-  echo "Run Phase 1 from the task worktree first: /backlog:complete ${TASK_ID}"
-  exit 1
+# Extract branch name from worktree list
+BRANCH_NAME=$(git worktree list | grep -i "${TASK_ID}" | awk '{print $3}' | tr -d '[]')
+
+# Alternative: Check for branches matching task ID pattern
+if [[ -z "$BRANCH_NAME" ]]; then
+  BRANCH_NAME=$(git branch --list "*${TASK_ID}*" --format='%(refname:short)' | head -1)
 fi
-```
-
-### Step 4: Find Worktree Branch
-
-```bash
-# Extract branch name from INDEX.md worktree column
-BRANCH_NAME=$(grep "| ${TASK_ID} |" tasks/INDEX.md | awk -F'`' '{print $2}')
 
 if [[ -z "$BRANCH_NAME" ]]; then
-  echo "ERROR: Could not find branch name for ${TASK_ID} in INDEX.md"
+  echo "ERROR: Could not find branch for task ${TASK_ID}"
+  echo ""
+  echo "Available worktrees:"
+  git worktree list
+  echo ""
+  echo "Available branches:"
+  git branch --list "*task*" "*review*" "*feature*" 2>/dev/null || git branch
   exit 1
 fi
 
@@ -191,6 +196,38 @@ if ! git rev-parse --verify "$BRANCH_NAME" >/dev/null 2>&1; then
   echo "ERROR: Branch ${BRANCH_NAME} not found"
   exit 1
 fi
+
+echo "Found branch: ${BRANCH_NAME}"
+```
+
+### Step 4: Verify Task Status (from Worktree Branch)
+
+**CRITICAL:** Check the task status from the WORKTREE BRANCH, not from main. The "Pending Merge" status was committed on the worktree branch during Phase 1 and hasn't been merged to main yet.
+
+```bash
+# Read INDEX.md from the worktree branch (not main!)
+BRANCH_INDEX=$(git show "${BRANCH_NAME}:tasks/INDEX.md" 2>/dev/null)
+
+if [[ -z "$BRANCH_INDEX" ]]; then
+  echo "ERROR: Could not read tasks/INDEX.md from branch ${BRANCH_NAME}"
+  exit 1
+fi
+
+# Check task status from the worktree branch's INDEX.md
+TASK_STATUS=$(echo "$BRANCH_INDEX" | grep "| ${TASK_ID} |" | awk -F'|' '{print $4}' | xargs)
+
+echo "Task status on ${BRANCH_NAME}: ${TASK_STATUS}"
+
+if [[ "$TASK_STATUS" != "Pending Merge" ]]; then
+  echo "ERROR: Task ${TASK_ID} is not ready for merge"
+  echo "Current status on branch ${BRANCH_NAME}: ${TASK_STATUS}"
+  echo ""
+  echo "Task must have 'Pending Merge' status (set during Phase 1)"
+  echo "Run Phase 1 from the task worktree first: /backlog:complete ${TASK_ID}"
+  exit 1
+fi
+
+echo "✓ Task is Pending Merge (verified from worktree branch)"
 ```
 
 ### Step 5: Verify Fast-Forward Possible
@@ -486,8 +523,12 @@ Verifying context...
   Current branch: main
   ✓ Running Phase 2 from main worktree
 
-Verifying task status...
-  ✓ Task is Pending Merge
+Finding worktree branch...
+  Found branch: review/crn-test-framework
+
+Verifying task status (from worktree branch)...
+  Task status on review/crn-test-framework: Pending Merge
+  ✓ Task is Pending Merge (verified from worktree branch)
 
 Verifying fast-forward possible...
   ✓ Fast-forward merge possible
