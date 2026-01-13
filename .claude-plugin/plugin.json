@@ -1,7 +1,7 @@
 {
   "name": "backlog",
   "description": "Manage tasks in tasks/ directory - launch agents, review, complete, archive with Stop hook and dependency resolution",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "author": {
     "name": "cyotee"
   }
