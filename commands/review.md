@@ -200,6 +200,12 @@ claude --model claude-sonnet-4-20250514 --dangerously-skip-permissions
 ═══════════════════════════════════════════════════════════════════
 ```
 
+**CRITICAL: Output the following promise tag to allow session exit:**
+
+```
+<promise>TASK_BLOCKED:review_mode_configured_start_new_session</promise>
+```
+
 ## Why Same Worktree?
 
 - Reviewing the same files that were implemented

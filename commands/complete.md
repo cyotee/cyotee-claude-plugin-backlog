@@ -126,6 +126,12 @@ This will:
 ═══════════════════════════════════════════════════════════════════
 ```
 
+**CRITICAL: Output the following promise tag to allow session exit:**
+
+```
+<promise>TASK_BLOCKED:phase1_complete_switch_to_main_worktree</promise>
+```
+
 **Exit after Phase 1 - do NOT proceed to Phase 2 from worktree**
 
 ---
@@ -466,6 +472,8 @@ Marking as Pending Merge...
 
 Next: Open Claude in main worktree and run:
   /backlog:complete CRANE-003 --push
+
+<promise>TASK_BLOCKED:phase1_complete_switch_to_main_worktree</promise>
 ```
 
 ### Phase 2 (from main worktree)
