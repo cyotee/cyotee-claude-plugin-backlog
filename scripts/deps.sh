@@ -359,64 +359,54 @@ deps_can_launch() {
   return 0
 }
 
-# Check for circular dependencies using DFS
+# Check for circular dependencies using DFS with proper backtracking
 deps_check_cycles() {
   deps_init_tmp
-  local visited_file="$DEPS_TMP_DIR/visited"
-  local stack_file="$DEPS_TMP_DIR/stack"
-  local path_file="$DEPS_TMP_DIR/path"
+  local visited_file="$DEPS_TMP_DIR/cycle_visited"
+  local on_path_file="$DEPS_TMP_DIR/cycle_on_path"
 
   : > "$visited_file"
-  : > "$stack_file"
-  : > "$path_file"
+  : > "$on_path_file"
 
   local found_cycle=""
+  local cycle_path=""
 
-  # DFS function (implemented iteratively to avoid bash recursion limits)
-  dfs_check() {
-    local start="$1"
-    local stack="$start"
-    local path=""
+  # Recursive DFS with proper backtracking
+  # Uses files to track state since bash functions can't modify parent variables
+  dfs_visit() {
+    local node="$1"
+    local path="$2"
 
-    while [[ -n "$stack" ]]; do
-      # Pop from stack
-      local node="${stack%% *}"
-      if [[ "$stack" == "$node" ]]; then
-        stack=""
-      else
-        stack="${stack#* }"
-      fi
+    # Check if already fully visited (no cycle from this node)
+    if grep -q "^${node}$" "$visited_file" 2>/dev/null; then
+      return 0
+    fi
 
-      # Check if already fully visited
-      if grep -q "^${node}$" "$visited_file" 2>/dev/null; then
-        continue
-      fi
+    # Check if on current path (cycle detected!)
+    if grep -q "^${node}$" "$on_path_file" 2>/dev/null; then
+      found_cycle="$node"
+      cycle_path="$path -> $node"
+      return 1
+    fi
 
-      # Check if in current path (cycle!)
-      if grep -q "^${node}$" "$stack_file" 2>/dev/null; then
-        found_cycle="$node"
+    # Add to current path
+    echo "$node" >> "$on_path_file"
+
+    # Visit all dependencies
+    local deps=$(deps_get_deps "$node")
+    for dep in $deps; do
+      if ! dfs_visit "$dep" "$path $node"; then
         return 1
       fi
-
-      # Add to current path
-      echo "$node" >> "$stack_file"
-      echo "$node" >> "$path_file"
-
-      # Get dependencies and add to stack
-      local deps=$(deps_get_deps "$node")
-      for dep in $deps; do
-        if ! grep -q "^${dep}$" "$visited_file" 2>/dev/null; then
-          stack="$dep $stack"
-        fi
-      done
     done
 
-    # Mark as fully visited
-    while IFS= read -r node; do
-      echo "$node" >> "$visited_file"
-    done < "$stack_file"
+    # Remove from current path (backtrack)
+    grep -v "^${node}$" "$on_path_file" > "$on_path_file.tmp" 2>/dev/null || true
+    mv "$on_path_file.tmp" "$on_path_file" 2>/dev/null || : > "$on_path_file"
 
-    : > "$stack_file"
+    # Mark as fully visited
+    echo "$node" >> "$visited_file"
+
     return 0
   }
 
@@ -424,11 +414,9 @@ deps_check_cycles() {
   while IFS= read -r task; do
     [[ -z "$task" ]] && continue
     if ! grep -q "^${task}$" "$visited_file" 2>/dev/null; then
-      if ! dfs_check "$task"; then
+      if ! dfs_visit "$task" ""; then
         echo "Circular dependency detected!"
-        echo "Cycle involves: $found_cycle"
-        cat "$path_file" | tr '\n' ' '
-        echo "-> $found_cycle"
+        echo "Cycle: $cycle_path"
         return 1
       fi
     fi
