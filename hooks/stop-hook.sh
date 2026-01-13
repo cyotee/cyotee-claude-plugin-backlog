@@ -9,10 +9,16 @@ set -euo pipefail
 # Read hook input from stdin (provides transcript_path)
 HOOK_INPUT=$(cat)
 
+# Helper function to allow exit with proper JSON output
+allow_exit() {
+  echo '{"decision": "allow"}'
+  exit 0
+}
+
 # Check if PROMPT.md exists (indicates we're in an agent worktree)
 if [[ ! -f "PROMPT.md" ]]; then
   # Not an agent worktree - allow exit
-  exit 0
+  allow_exit
 fi
 
 # State file for iteration tracking (optional)
@@ -42,11 +48,11 @@ fi
 
 # Check if max iterations reached
 if [[ $MAX_ITERATIONS -gt 0 ]] && [[ $ITERATION -ge $MAX_ITERATIONS ]]; then
-  echo "🛑 Max iterations ($MAX_ITERATIONS) reached."
-  echo "   Task did not complete within iteration limit."
-  echo "   Check PROGRESS.md for current state."
+  echo "🛑 Max iterations ($MAX_ITERATIONS) reached." >&2
+  echo "   Task did not complete within iteration limit." >&2
+  echo "   Check PROGRESS.md for current state." >&2
   [[ -f "$STATE_FILE" ]] && rm "$STATE_FILE"
-  exit 0
+  allow_exit
 fi
 
 # Get transcript path from hook input
@@ -54,13 +60,13 @@ TRANSCRIPT_PATH=$(echo "$HOOK_INPUT" | jq -r '.transcript_path')
 
 if [[ ! -f "$TRANSCRIPT_PATH" ]]; then
   echo "⚠️  Backlog hook: Transcript file not found" >&2
-  exit 0
+  allow_exit
 fi
 
 # Check if there are any assistant messages
 if ! grep -q '"role":"assistant"' "$TRANSCRIPT_PATH"; then
   # No assistant messages yet - allow exit (shouldn't normally happen)
-  exit 0
+  allow_exit
 fi
 
 # Extract last assistant message
@@ -77,27 +83,27 @@ PROMISE_TEXT=$(echo "$LAST_OUTPUT" | perl -0777 -pe 's/.*?<promise>(.*?)<\/promi
 
 # Check for TASK_COMPLETE
 if [[ "$PROMISE_TEXT" = "TASK_COMPLETE" ]]; then
-  echo "✅ Task complete - implementation finished"
+  echo "✅ Task complete - implementation finished" >&2
   [[ -f "$STATE_FILE" ]] && rm "$STATE_FILE"
-  exit 0
+  allow_exit
 fi
 
 # Check for REVIEW_COMPLETE
 if [[ "$PROMISE_TEXT" = "REVIEW_COMPLETE" ]]; then
-  echo "✅ Review complete - code review finished"
+  echo "✅ Review complete - code review finished" >&2
   [[ -f "$STATE_FILE" ]] && rm "$STATE_FILE"
-  exit 0
+  allow_exit
 fi
 
 # Check for TASK_BLOCKED (with optional reason)
 if [[ "$PROMISE_TEXT" = "TASK_BLOCKED" ]] || [[ "$PROMISE_TEXT" == TASK_BLOCKED:* ]]; then
-  echo "⚠️  Task blocked - agent reported blocker"
+  echo "⚠️  Task blocked - agent reported blocker" >&2
   if [[ "$PROMISE_TEXT" == TASK_BLOCKED:* ]]; then
     REASON="${PROMISE_TEXT#TASK_BLOCKED:}"
-    echo "   Reason: $REASON"
+    echo "   Reason: $REASON" >&2
   fi
   [[ -f "$STATE_FILE" ]] && rm "$STATE_FILE"
-  exit 0
+  allow_exit
 fi
 
 # Not complete - increment iteration and block exit
