@@ -145,26 +145,53 @@ This allows agents to survive context compaction and resume work across sessions
 
 ---
 
-### `/backlog:complete [task-id] [--push] [--no-rebase]`
+### `/backlog:complete [task-id] [--push]`
 
-Finalize a completed task by rebasing onto main and preparing for review.
+Finalize a completed task using a **two-phase workflow** for smooth completion.
 
-**Must be run from a feature worktree, not main.**
+**Two-Phase Workflow:**
 
-**What it does:**
-1. Verifies you're in a feature worktree
-2. Checks for uncommitted changes
-3. Fetches and rebases onto main
-4. Fast-forwards main
-5. Updates task status to `review`
-6. Outputs cleanup instructions
+#### Phase 1: Prepare from Task Worktree
+Run from the task's worktree (NOT main):
+1. Commits all final changes (EXCEPT PROMPT.md which is auto-excluded)
+2. Rebases the worktree branch onto local main
+3. Marks task as "Pending Merge" in INDEX.md
+4. Displays instructions to run Phase 2 from main
+
+#### Phase 2: Finalize from Main Worktree
+Run from the main worktree:
+1. Verifies task is "Pending Merge" and fast-forward is possible
+2. Fast-forward merges main to include the task's commits
+3. Marks task as "Complete" in INDEX.md
+4. Updates dependent tasks (unblocks blocked tasks)
+5. Archives task files to tasks/archive/
+6. Removes the worktree and branch automatically
+7. Displays completion summary with unblocked tasks
+
+**Key Benefits:**
+- ✓ PROMPT.md automatically excluded from commits
+- ✓ Clean linear history (fast-forward only)
+- ✓ Automatic worktree cleanup
+- ✓ Automatic task archival
+- ✓ Dependency cascade updates
+- ✓ Safe rollback between phases
 
 **Arguments:**
 | Argument | Description |
 |----------|-------------|
-| `<task-id>` | Task ID (e.g., P-5) - optional, prompts if not provided |
-| `--push` | Push main to origin after merge |
-| `--no-rebase` | Skip rebase (use if already rebased) |
+| `<task-id>` | Task ID (e.g., CRANE-003) - optional, prompts if not provided |
+| `--push` | Push main to origin after merge (Phase 2 only) |
+
+**Example:**
+```bash
+# Phase 1: In task worktree
+$ /backlog:complete CRANE-003
+# → Commits changes, rebases, marks "Pending Merge"
+
+# Phase 2: In main worktree
+$ /backlog:complete CRANE-003 --push
+# → Merges, archives, cleans up, unblocks dependents
+```
 
 ---
 
