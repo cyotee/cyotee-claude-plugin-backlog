@@ -1,7 +1,7 @@
 ---
 description: Launch agent worktree for a specific task
-argument-hint: <task-id> [--max-iterations N]
-allowed-tools: Read, Write, Edit, Bash, Glob, Grep
+argument-hint: <task-id> [--max-iterations N] [--force]
+allowed-tools: Read, Write, Edit, Bash, Glob, Grep, AskUserQuestion
 ---
 
 # Launch Agent Worktree
@@ -18,6 +18,7 @@ Create a git worktree and PROMPT.md for a task, ready for agent execution.
 
 2. **Extract optional flags:**
    - `--max-iterations N` - Safety limit for agent iterations (default: 0 = unlimited)
+   - `--force` - Launch even if dependencies are incomplete (with warning)
 
 ### Phase 2: Validate Task
 
@@ -35,9 +36,70 @@ Create a git worktree and PROMPT.md for a task, ready for agent execution.
 4. **Check task status:**
    - If "Complete": Warn and ask for confirmation
    - If "In Progress": Warn that worktree may already exist
-   - If "Blocked": Show blockers and ask for confirmation
 
-### Phase 3: Prepare Task Files
+### Phase 3: Dependency Check (NEW)
+
+**Build dependency graph and check if task can be launched:**
+
+```bash
+source "${CLAUDE_PLUGIN_ROOT}/scripts/deps.sh"
+deps_build_graph
+
+# Check if task can be launched
+if ! deps_can_launch "${TASK_ID}"; then
+  # deps_can_launch outputs the blockers
+
+  if [[ "$FORCE" != "true" ]]; then
+    echo ""
+    echo "Cannot launch task with incomplete dependencies."
+    echo ""
+    echo "Options:"
+    echo "  1. Complete the blocking tasks first"
+    echo "  2. Use --force to launch anyway (not recommended)"
+    echo ""
+    exit 1
+  else
+    echo ""
+    echo "WARNING: Launching with incomplete dependencies (--force)"
+    echo "The agent may encounter issues due to missing prerequisites."
+    echo ""
+  fi
+fi
+```
+
+**If blocked (without --force):**
+
+```
+═══════════════════════════════════════════════════════════════════
+ CANNOT LAUNCH: {TASK_ID}
+═══════════════════════════════════════════════════════════════════
+
+This task has incomplete dependencies:
+
+  - {DEP-001} (In Progress): {Title}
+  - {DEP-002} (Ready): {Title}
+
+These tasks must be Complete before {TASK_ID} can start.
+
+## Options
+
+1. Complete the blocking tasks first:
+   /backlog:launch {DEP-001}
+
+2. Force launch (not recommended):
+   /backlog:launch {TASK_ID} --force
+
+## Recommended Order
+
+To complete all dependencies:
+1. {DEP-002}: {Title} (no dependencies)
+2. {DEP-001}: {Title} (depends on {DEP-002})
+3. {TASK_ID}: {Title} (depends on {DEP-001})
+
+═══════════════════════════════════════════════════════════════════
+```
+
+### Phase 4: Prepare Task Files
 
 1. **Initialize PROGRESS.md** if it doesn't exist or is empty:
    ```markdown
@@ -67,7 +129,7 @@ Create a git worktree and PROMPT.md for a task, ready for agent execution.
    git commit -m "chore: prepare task ${TASK_ID} for agent launch" --allow-empty
    ```
 
-### Phase 4: Create Worktree
+### Phase 5: Create Worktree
 
 1. **Load configuration:**
    ```bash
@@ -92,7 +154,7 @@ Create a git worktree and PROMPT.md for a task, ready for agent execution.
    git submodule update --init --recursive
    ```
 
-### Phase 5: Setup Agent Environment
+### Phase 6: Setup Agent Environment
 
 1. **Create PROMPT.md** in worktree root that **points to** task files:
 
@@ -103,6 +165,15 @@ Create a git worktree and PROMPT.md for a task, ready for agent execution.
 **Repo:** {REPO_NAME}
 **Mode:** Implementation
 **Task Directory:** tasks/{PREFIX}-{NNN}-{kebab-name}/
+
+## Dependencies
+
+{If task has dependencies, list them with their status}
+
+| Dependency | Status | Title |
+|------------|--------|-------|
+| {DEP-001} | Complete | {Title} |
+| {DEP-002} | Complete | {Title} |
 
 ## Required Reading
 
@@ -156,7 +227,7 @@ Before marking complete, verify:
    | {PREFIX}-{NNN} | {Title} | In Progress | {Deps} | feature/{name} |
    ```
 
-### Phase 6: Output Launch Instructions
+### Phase 7: Output Launch Instructions
 
 Output ready-to-use commands with **absolute paths**:
 
@@ -166,6 +237,17 @@ Output ready-to-use commands with **absolute paths**:
 ═══════════════════════════════════════════════════════════════════
 
 Task files committed and worktree created.
+
+## Dependencies
+
+{If dependencies exist}
+All dependencies are complete:
+- {DEP-001}: {Title} ✓
+- {DEP-002}: {Title} ✓
+
+{Or if launched with --force}
+WARNING: Launched with incomplete dependencies:
+- {DEP-001}: {Title} (In Progress)
 
 ## Step 1: Open a new terminal and run:
 
@@ -201,6 +283,7 @@ Agent will use subscription usage, not API credits.
 |----------|-------------|
 | `<task-id>` | Task ID to launch (e.g., CRANE-003) |
 | `--max-iterations N` | Optional safety limit (default: 0 = unlimited) |
+| `--force` | Launch even if dependencies are incomplete |
 
 ## Error Handling
 
@@ -210,6 +293,7 @@ Agent will use subscription usage, not API credits.
 - **Worktree creation fails:** Show error and manual steps
 - **No tasks/ directory:** "Run /design:init first"
 - **Submodule init fails:** Copy from main repo as fallback
+- **Dependencies incomplete:** Show blockers and recommend order (unless --force)
 
 ## Why Commit Before Worktree?
 
@@ -224,6 +308,11 @@ $ /backlog:launch CRANE-003 --max-iterations 20
 
 Finding task CRANE-003...
   Found: tasks/CRANE-003-uniswap-v4-utils/
+
+Checking dependencies...
+  CRANE-001: Complete ✓
+  CRANE-002: Complete ✓
+  All dependencies satisfied.
 
 Preparing task files...
   PROGRESS.md initialized
@@ -246,4 +335,38 @@ Setting up agent environment...
 ═══════════════════════════════════════════════════════════════════
 
 ...
+```
+
+## Example: Blocked Task
+
+```bash
+$ /backlog:launch IDXEX-005
+
+Finding task IDXEX-005...
+  Found: tasks/IDXEX-005-protocol-integration/
+
+Checking dependencies...
+  IDXEX-003: In Progress ✗
+  IDXEX-004: Ready ✗
+
+═══════════════════════════════════════════════════════════════════
+ CANNOT LAUNCH: IDXEX-005
+═══════════════════════════════════════════════════════════════════
+
+This task has incomplete dependencies:
+
+  - IDXEX-003 (In Progress): Fee collector
+  - IDXEX-004 (Ready): Vault types
+
+These tasks must be Complete before IDXEX-005 can start.
+
+## Options
+
+1. Complete the blocking tasks first:
+   /backlog:launch IDXEX-003
+
+2. Force launch (not recommended):
+   /backlog:launch IDXEX-005 --force
+
+═══════════════════════════════════════════════════════════════════
 ```

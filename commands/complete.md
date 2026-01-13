@@ -6,7 +6,7 @@ allowed-tools: Read, Write, Edit, Bash, Glob, Grep, AskUserQuestion
 
 # Complete Task Worktree
 
-Finalize a completed task by cleaning up worktree-specific files, rebasing onto local main, and updating task status.
+Finalize a completed task by cleaning up worktree-specific files, rebasing onto local main, updating task status, and cascading status updates to dependent tasks.
 
 **Arguments:** $ARGUMENTS
 
@@ -100,7 +100,67 @@ Finalize a completed task by cleaning up worktree-specific files, rebasing onto 
    fi
    ```
 
-### Phase 5: Output Summary
+### Phase 5: Cascade Dependency Updates (NEW)
+
+**Update dependents when this task completes:**
+
+```bash
+source "${CLAUDE_PLUGIN_ROOT}/scripts/deps.sh"
+deps_build_graph
+
+# Get tasks that depend on this one
+dependents=$(deps_get_dependents "${TASK_ID}")
+
+if [[ -n "$dependents" ]]; then
+  echo "Checking dependent tasks..."
+
+  for dependent in $dependents; do
+    # Compute new status (may change from Blocked to Ready)
+    old_status="${DEPS_STATUS[$dependent]:-}"
+    DEPS_STATUS["${TASK_ID}"]="Complete"  # Mark ourselves complete
+    new_status=$(deps_compute_status "$dependent")
+
+    if [[ "$old_status" == "Blocked" && "$new_status" == "Ready" ]]; then
+      echo "  $dependent: Blocked -> Ready (unblocked by ${TASK_ID})"
+
+      # Update INDEX.md
+      sed -i.bak "s/| $dependent |\([^|]*\)| Blocked |/| $dependent |\1| Ready |/" tasks/INDEX.md
+      rm -f tasks/INDEX.md.bak
+    fi
+  done
+
+  # Commit cascade updates
+  if git diff --quiet tasks/INDEX.md; then
+    : # No changes
+  else
+    git add tasks/INDEX.md
+    git commit -m "chore: unblock tasks dependent on ${TASK_ID}"
+    git branch -f main HEAD
+
+    if [ "$PUSH" = "true" ]; then
+      git push origin main
+    fi
+  fi
+fi
+```
+
+**Cascade output:**
+
+```
+## Dependency Cascade
+
+The following tasks are now unblocked:
+
+| Task | Previous | New | Ready to Launch |
+|------|----------|-----|-----------------|
+| IDXEX-003 | Blocked | Ready | /backlog:launch IDXEX-003 |
+| IDXEX-004 | Blocked | Ready | /backlog:launch IDXEX-004 |
+
+Tasks still blocked (waiting on other deps):
+- IDXEX-005: Still waiting on IDXEX-003
+```
+
+### Phase 6: Output Summary
 
 ```
 ═══════════════════════════════════════════════════════════════════
@@ -115,6 +175,19 @@ Finalize a completed task by cleaning up worktree-specific files, rebasing onto 
 - Main updated to: {short-sha}
 - Pushed to origin: {yes/no}
 - INDEX.md updated: yes
+
+## Dependency Cascade
+
+{If dependents were unblocked}
+The following tasks are now unblocked:
+- {PREFIX}-{XXX}: {Title} -> Ready
+- {PREFIX}-{YYY}: {Title} -> Ready
+
+Next recommended task:
+  /backlog:launch {PREFIX}-{XXX}
+
+{If no dependents}
+No dependent tasks were unblocked.
 
 ## Files Removed
 
@@ -145,6 +218,7 @@ git branch -D {branch-name}
 1. Exit this Claude session
 2. Run the cleanup command above
 3. Use /backlog:prune to archive completed tasks
+4. Launch next task: /backlog:launch {next-task}
 
 ═══════════════════════════════════════════════════════════════════
 ```
@@ -191,6 +265,7 @@ Rebase conflicts detected. Please resolve manually:
 - **Cannot self-delete:** Agent cannot delete its own worktree while running. Cleanup must be done externally.
 - **Task IDs persist:** Task numbers are never changed or renumbered
 - **PROMPT.md deleted:** Prevents polluting main branch with task-specific files
+- **Cascade updates:** Dependent tasks are automatically unblocked when this task completes
 
 ## Example Session
 
@@ -224,9 +299,38 @@ Updating INDEX.md...
   CRANE-003 status: Complete
   Committed: chore: mark task CRANE-003 as complete
 
+Checking dependent tasks...
+  CRANE-005: Blocked -> Ready (unblocked by CRANE-003)
+  CRANE-006: Blocked -> Ready (unblocked by CRANE-003)
+  Committed: chore: unblock tasks dependent on CRANE-003
+
 ═══════════════════════════════════════════════════════════════════
  TASK COMPLETED: CRANE-003
 ═══════════════════════════════════════════════════════════════════
+
+## Summary
+
+- Task: CRANE-003 - Uniswap V4 Utils
+- Branch: feature/uniswap-v4-utils
+- Commits rebased onto main: 5
+- Main updated to: abc1234
+- Pushed to origin: yes
+- INDEX.md updated: yes
+
+## Dependency Cascade
+
+The following tasks are now unblocked:
+- CRANE-005: Slipstream vault -> Ready
+- CRANE-006: V4 vault -> Ready
+
+Next recommended task:
+  /backlog:launch CRANE-005
+
+## Cleanup Required
+
+Run from the main worktree:
+
+git wt -d feature/uniswap-v4-utils
 
 ...
 ```
