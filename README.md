@@ -186,6 +186,61 @@ Archive completed and reviewed tasks.
 
 ---
 
+### `/backlog:list [--worktrees-only]`
+
+List all unarchived tasks with their status, dependencies, and worktrees.
+
+**Aliases:** `/backlog:worktrees` (with --worktrees-only)
+
+**What it does:**
+1. Reads tasks/INDEX.md and builds dependency graph
+2. Computes effective status for each task (blocked if deps incomplete)
+3. Cross-references with git worktrees
+4. Displays unified task list with status icons
+
+**Example output:**
+```
+═══════════════════════════════════════════════════════════════════
+ TASK LIST: IndexedEx
+
+| ID | Title | Status | Dependencies | Worktree |
+|----|-------|--------|--------------|----------|
+| IDXEX-001 | Core infrastructure | ✅ Complete | - | - |
+| IDXEX-002 | Registry system | 🚀 In Progress | - | feature/registry |
+| IDXEX-003 | Fee collector | ❌ Blocked | IDXEX-002 | - |
+| IDXEX-004 | Vault types | 🆕 Ready | IDXEX-001 | - |
+
+## Summary
+
+Total: 4 tasks
+✅ Complete: 1 | 🚀 In Progress: 1 | 🆕 Ready: 1 | ❌ Blocked: 1
+
+## Next Actions
+
+Ready to start:
+- /backlog:launch IDXEX-004
+
+Currently blocked:
+- IDXEX-003: Waiting on IDXEX-002
+═══════════════════════════════════════════════════════════════════
+```
+
+**Arguments:**
+| Argument | Description |
+|----------|-------------|
+| `--worktrees-only` | Show only active worktrees (legacy behavior) |
+
+**Status Icons:**
+| Icon | Status | Description |
+|------|--------|-------------|
+| ✅ | Complete | Task finished and merged |
+| 🚀 | In Progress | Agent actively working |
+| 📋 | In Review | Work complete, code review |
+| 🆕 | Ready | All dependencies met, can start |
+| ❌ | Blocked | Waiting on dependencies |
+
+---
+
 ## Layer Detection
 
 Layers are detected dynamically:
