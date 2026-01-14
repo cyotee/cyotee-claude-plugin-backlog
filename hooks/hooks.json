@@ -1,6 +1,16 @@
 {
-  "description": "Backlog plugin stop hook for task completion validation",
+  "description": "Backlog plugin hooks for task management",
   "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh"
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "hooks": [

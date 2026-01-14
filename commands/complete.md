@@ -1,20 +1,212 @@
 ---
-description: Complete a task - two-phase workflow (worktree prep, then main merge)
+description: Complete a task - supports worktree and in-session workflows
 argument-hint: <task-id> [--push]
 allowed-tools: Read, Write, Edit, Bash, Glob, Grep, AskUserQuestion
 ---
 
-# Complete Task - Two Phase Workflow
+# Complete Task
 
-Finalize a completed task using a two-phase workflow:
-1. **Phase 1 (from worktree):** Commit changes, rebase onto main, mark pending merge
-2. **Phase 2 (from main):** Fast-forward merge, archive, remove worktree, cascade dependencies
+Finalize a completed task. Supports multiple workflows:
+
+1. **In-Session Mode:** PROMPT.md exists, no worktree - complete task in current session
+2. **Worktree Phase 1:** From task worktree - commit, rebase, mark pending merge
+3. **Worktree Phase 2:** From main - fast-forward merge, archive, cleanup
 
 **Arguments:** $ARGUMENTS
 
-## Workflow Overview
+## Mode Detection
 
-This command automatically detects whether you're running from:
+This command automatically detects the workflow mode:
+
+```bash
+CURRENT_BRANCH=$(git branch --show-current)
+GIT_DIR=$(git rev-parse --git-dir 2>/dev/null)
+GIT_COMMON=$(git rev-parse --git-common-dir 2>/dev/null)
+
+# Check if we're in a worktree (git dir differs from common dir)
+IS_WORKTREE="false"
+if [[ -n "$GIT_DIR" && -n "$GIT_COMMON" && "$GIT_DIR" != "$GIT_COMMON" ]]; then
+  IS_WORKTREE="true"
+fi
+
+# Check if PROMPT.md exists (indicates in-session or worktree work)
+HAS_PROMPT="false"
+if [[ -f "PROMPT.md" ]]; then
+  HAS_PROMPT="true"
+fi
+```
+
+**Mode determination:**
+
+| Condition | Mode |
+|-----------|------|
+| In worktree, not on main | Worktree Phase 1 |
+| On main, task has worktree | Worktree Phase 2 |
+| PROMPT.md exists, NOT in worktree | **In-Session Mode** |
+| On main, PROMPT.md exists | In-Session (main branch) |
+| On feature branch, PROMPT.md, no worktree | In-Session (feature branch) |
+
+---
+
+## In-Session Mode
+
+**Context:** PROMPT.md exists in current directory, NOT running from a worktree. This handles tasks started with `/backlog:work`.
+
+### In-Session Step 1: Detect Task ID
+
+```bash
+# If task ID provided in arguments, use it
+# Otherwise, extract from PROMPT.md
+if [[ -z "$TASK_ID" ]]; then
+  TASK_ID=$(grep "^\*\*Task:\*\*" PROMPT.md | sed 's/.*\*\*Task:\*\* \([A-Z]*-[0-9]*\).*/\1/' | head -1)
+fi
+
+if [[ -z "$TASK_ID" ]]; then
+  echo "ERROR: Could not determine task ID"
+  echo "Usage: /backlog:complete <task-id>"
+  exit 1
+fi
+
+echo "Completing in-session task: ${TASK_ID}"
+```
+
+### In-Session Step 2: Commit Changes
+
+```bash
+# Stage all changes except PROMPT.md
+git add -A
+git reset HEAD PROMPT.md 2>/dev/null || true
+
+# Check if there are changes to commit
+if ! git diff --cached --quiet; then
+  git commit -m "feat(${TASK_ID}): implement task"
+  echo "✓ Committed changes"
+else
+  echo "✓ No changes to commit"
+fi
+```
+
+### In-Session Step 3: Handle Branch (if not on main)
+
+```bash
+CURRENT_BRANCH=$(git branch --show-current)
+
+if [[ "$CURRENT_BRANCH" != "main" && "$CURRENT_BRANCH" != "master" ]]; then
+  echo "On feature branch: ${CURRENT_BRANCH}"
+  echo "Rebasing onto main..."
+
+  # Fetch latest main
+  git fetch origin main 2>/dev/null || true
+
+  # Rebase onto main
+  if git rebase main; then
+    echo "✓ Rebased onto main"
+  else
+    echo "ERROR: Rebase conflicts detected"
+    echo ""
+    echo "Resolution steps:"
+    echo "1. Fix conflicts in the listed files"
+    echo "2. Stage resolved files: git add <files>"
+    echo "3. Continue rebase: git rebase --continue"
+    echo "4. Re-run /backlog:complete ${TASK_ID}"
+    exit 1
+  fi
+
+  # Switch to main and merge
+  echo "Switching to main and merging..."
+  git checkout main
+  git merge --ff-only "${CURRENT_BRANCH}"
+
+  if [[ $? -eq 0 ]]; then
+    echo "✓ Merged to main"
+
+    # Delete feature branch
+    git branch -d "${CURRENT_BRANCH}"
+    echo "✓ Deleted branch ${CURRENT_BRANCH}"
+  else
+    echo "ERROR: Fast-forward merge failed"
+    echo "Main may have advanced. Try rebasing again."
+    git checkout "${CURRENT_BRANCH}"
+    exit 1
+  fi
+fi
+```
+
+### In-Session Step 4: Cleanup PROMPT.md
+
+```bash
+# Remove PROMPT.md to keep main clean
+rm -f PROMPT.md
+echo "✓ Removed PROMPT.md"
+```
+
+### In-Session Step 5: Update INDEX.md
+
+```bash
+# Update status to Complete
+sed -i.bak "s/| ${TASK_ID} |\([^|]*\)| In Progress |/| ${TASK_ID} |\1| Complete |/" tasks/INDEX.md
+rm -f tasks/INDEX.md.bak
+
+git add tasks/INDEX.md
+git commit -m "chore: mark ${TASK_ID} as complete"
+echo "✓ Task marked as Complete"
+```
+
+### In-Session Step 6: Push (Optional)
+
+```bash
+if [[ "$ARGUMENTS" == *"--push"* ]]; then
+  echo "Pushing to origin..."
+  if git push origin main; then
+    echo "✓ Pushed to origin/main"
+    PUSHED="yes"
+  else
+    echo "WARNING: Push failed"
+    PUSHED="failed"
+  fi
+else
+  PUSHED="no"
+fi
+```
+
+### In-Session Step 7: Output Summary
+
+```
+═══════════════════════════════════════════════════════════════════
+ TASK COMPLETED: {TASK_ID}
+═══════════════════════════════════════════════════════════════════
+
+## Summary
+
+- Task: {TASK_ID} - {Title}
+- Mode: In-Session (no worktree)
+- Branch merged: {yes/no - if was on feature branch}
+- Pushed to origin: {yes/no/failed}
+
+## Cleanup
+
+✓ PROMPT.md removed
+✓ INDEX.md updated to Complete
+{If was on feature branch}
+✓ Feature branch deleted
+
+## Next Steps
+
+1. View backlog: /backlog
+2. Start next task: /backlog:work <task-id>
+3. Or create worktree: /backlog:launch <task-id>
+
+═══════════════════════════════════════════════════════════════════
+```
+
+**Exit after in-session completion.**
+
+---
+
+## Worktree Workflow Overview
+
+For tasks started with `/backlog:launch`, use the two-phase worktree workflow:
+
 - **Task worktree** → Execute Phase 1 (prepare for merge)
 - **Main worktree** → Execute Phase 2 (finalize and cleanup)
 

@@ -18,6 +18,7 @@ Use this skill to mirror the Claude `/backlog` plugin flows inside Codex. It ass
 ## How to Use
 - `status`: Summarize tasks by status with dependencies and worktrees. Prefer `tasks/INDEX.md`; if missing, scan `tasks/*` except `archive/`.
 - `read <ID>`: Normalize IDs (allow `P-5` or `5` with detected prefix). Output PRD highlights (title, goals, acceptance criteria) and the latest progress/review notes.
+- `work <ID>`: Start working on a task in the current session (no worktree). Creates PROMPT.md, marks status `in_progress`. Use for quick/simple tasks.
 - `launch <ID>`:
   1) Resolve repo root (`git rev-parse --show-toplevel`) and expected worktree branch (commonly `feature/<kebab>` from PRD).  
   2) Create or reuse worktree via `plugins/backlog/scripts/wt-create.sh <branch> [repo-root]`.  
@@ -25,7 +26,9 @@ Use this skill to mirror the Claude `/backlog` plugin flows inside Codex. It ass
   4) Ensure `tasks/[ID]/PROGRESS.md` exists with a Checkpoints section; append a new entry noting the launch.  
   5) Mark status `in_progress` in `tasks/INDEX.md` (or add frontmatter to PRD if no index).  
   6) Print launch steps for the user (`cd <worktree>`, run Claude/Codex, start agent loop).
-- `complete <ID>`: From the worktree, check clean state, rebase onto main (unless explicitly skipped), merge/fast-forward main, update status to `review`, and point the user to PR/QA steps.
+- `complete <ID>`: Complete a task. Supports two modes:
+  - **In-session mode** (from `/backlog:work`): Commits changes, rebases if on feature branch, merges to main, removes PROMPT.md, marks complete.
+  - **Worktree mode** (from `/backlog:launch`): Two-phase workflow - Phase 1 from worktree (rebase, mark pending), Phase 2 from main (merge, archive, cleanup).
 - `prune [<ID>|--all]`: Move completed/reviewed tasks to `tasks/archive/`, update `INDEX.md`, and list any stale worktrees to delete (use `plugins/backlog/scripts/wt-remove.sh <branch> [repo-root]`).
 - `list --worktrees-only`: Cross-reference `git worktree list` with tasks to show active branches and statuses.
 
