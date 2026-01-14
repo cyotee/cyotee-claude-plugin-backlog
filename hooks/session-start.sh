@@ -86,15 +86,18 @@ if is_secondary_worktree; then
 
     echo ""
 
-    # Check for context files
+    # Check for context files and instruct Claude to begin work
     if [[ -f "PROMPT.md" ]]; then
-        echo "Context files found:"
+        echo "Context files:"
         echo "  - PROMPT.md (task instructions)"
 
+        # Check for PROGRESS.md
+        if [[ -f "PROGRESS.md" ]]; then
+            echo "  - PROGRESS.md (prior work log)"
+        fi
+
         # Check for task directory files
-        TASK_DIR=$(find . -maxdepth 2 -type d -name 'tasks' -print -quit 2>/dev/null || echo "")
         if [[ -d "tasks" ]]; then
-            # Look for task files in tasks/ subdirectories
             for f in TASK.md PROGRESS.md REVIEW.md; do
                 if find tasks -name "$f" -print -quit 2>/dev/null | grep -q .; then
                     echo "  - tasks/*/$f"
@@ -103,7 +106,13 @@ if is_secondary_worktree; then
         fi
 
         echo ""
-        echo "Run /up:prompt to load task context"
+        echo "═══════════════════════════════════════════════════════════════════"
+        echo ""
+        echo "INSTRUCTION: You are in an agent worktree. Read PROMPT.md now and"
+        echo "begin working on the task immediately. If PROGRESS.md exists, review"
+        echo "it first to continue from where you left off. Do not wait for user"
+        echo "input - start the task autonomously."
+        echo ""
     else
         echo "No PROMPT.md found in this worktree."
         echo "This may be a manually created worktree."
