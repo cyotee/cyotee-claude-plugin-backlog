@@ -1,12 +1,14 @@
 ---
-description: Transition a task to review mode in existing worktree
+description: Transition task to code review mode after implementation (not task definition audit - see /design:review for that)
 argument-hint: <task-id>
 allowed-tools: Read, Write, Edit, Bash, Glob, Grep, AskUserQuestion
 ---
 
-# Transition Task to Review Mode
+# Transition Task to Code Review Mode
 
-Update PROMPT.md in an existing worktree to switch from implementation to code review mode.
+Update PROMPT.md in an existing worktree to switch from implementation to **code review** mode. This reviews the implementation code, NOT the task definition.
+
+**For task definition audits** (checking TASK.md quality), use `/design:review` instead.
 
 **Task to review:** $ARGUMENTS
 

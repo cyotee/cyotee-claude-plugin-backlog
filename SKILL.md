@@ -30,6 +30,7 @@ Use this skill to mirror the Claude `/backlog` plugin flows inside Codex. It ass
   - **In-session mode** (from `/backlog:work`): Commits changes, rebases if on feature branch, merges to main, removes PROMPT.md, marks complete.
   - **Worktree mode** (from `/backlog:launch`): Two-phase workflow - Phase 1 from worktree (rebase, mark pending), Phase 2 from main (merge, archive, cleanup).
 - `prune [<ID>|--all]`: Move completed/reviewed tasks to `tasks/archive/`, update `INDEX.md`, and list any stale worktrees to delete (use `plugins/backlog/scripts/wt-remove.sh <branch> [repo-root]`).
+- `review <ID>`: Transition task to **code review mode** (not task definition audit - use `/design:review` for that). Updates PROMPT.md in worktree to switch from implementation to code review.
 - `list --worktrees-only`: Cross-reference `git worktree list` with tasks to show active branches and statuses.
 
 ## Key Files
