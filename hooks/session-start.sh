@@ -10,6 +10,21 @@ if ! git rev-parse --git-dir &>/dev/null; then
     exit 0
 fi
 
+# Function to verify submodules are functional
+verify_submodules() {
+    if [ ! -f ".gitmodules" ]; then
+        return 0  # No submodules
+    fi
+
+    while IFS= read -r subpath; do
+        if [ -d "$subpath" ] && ! git -C "$subpath" rev-parse --git-dir &>/dev/null 2>&1; then
+            return 1  # Found a broken submodule
+        fi
+    done < <(grep "path = " .gitmodules 2>/dev/null | sed 's/.*path = //')
+
+    return 0  # All submodules OK
+}
+
 # Method 3: Use git worktree list to detect if we're in a worktree
 # This is the most reliable approach as it queries git's authoritative worktree list
 is_secondary_worktree() {
@@ -105,14 +120,33 @@ if is_secondary_worktree; then
             done
         fi
 
-        echo ""
-        echo "═══════════════════════════════════════════════════════════════════"
-        echo ""
-        echo "INSTRUCTION: You are in an agent worktree. Read PROMPT.md now and"
-        echo "begin working on the task immediately. If PROGRESS.md exists, review"
-        echo "it first to continue from where you left off. Do not wait for user"
-        echo "input - start the task autonomously."
-        echo ""
+        # Check for broken submodules before starting work
+        if ! verify_submodules; then
+            echo ""
+            echo "═══════════════════════════════════════════════════════════════════"
+            echo " ⚠️  SUBMODULE ISSUE DETECTED"
+            echo "═══════════════════════════════════════════════════════════════════"
+            echo ""
+            echo "Some submodules are not properly initialized in this worktree."
+            echo "Git commands may fail in submodule directories."
+            echo ""
+            echo "INSTRUCTION: Before starting work, run:"
+            echo "  git submodule update --init --recursive"
+            echo ""
+            echo "If that fails, output:"
+            echo "  <promise>TASK_BLOCKED: Submodules broken, needs reinitialization</promise>"
+            echo ""
+            echo "═══════════════════════════════════════════════════════════════════"
+        else
+            echo ""
+            echo "═══════════════════════════════════════════════════════════════════"
+            echo ""
+            echo "INSTRUCTION: You are in an agent worktree. Read PROMPT.md now and"
+            echo "begin working on the task immediately. If PROGRESS.md exists, review"
+            echo "it first to continue from where you left off. Do not wait for user"
+            echo "input - start the task autonomously."
+            echo ""
+        fi
     else
         echo "No PROMPT.md found in this worktree."
         echo "This may be a manually created worktree."

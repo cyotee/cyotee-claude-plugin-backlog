@@ -143,16 +143,21 @@ To complete all dependencies:
    WT_PATH="${REPO_ROOT}-wt/${BRANCH}"
    ```
 
-3. **Create worktree:**
+3. **Create worktree with submodules:**
    ```bash
    "${CLAUDE_PLUGIN_ROOT}/scripts/wt-create.sh" "${BRANCH}" "${REPO_ROOT}"
    ```
 
-4. **Initialize submodules:**
-   ```bash
-   cd "${WT_PATH}"
-   git submodule update --init --recursive
-   ```
+   The script handles:
+   - Creating the worktree and branch
+   - Initializing all submodules recursively
+   - Verifying submodules are functional
+   - **Exits with error if submodules fail** (worktree unusable)
+
+4. **Verify success:**
+   - If the script exits with error, **stop and report the failure**
+   - Output: `<promise>TASK_BLOCKED: Worktree creation failed - submodules not initialized</promise>`
+   - Do NOT proceed to Phase 6 if submodules are broken
 
 ### Phase 6: Setup Agent Environment
 
@@ -203,6 +208,18 @@ Before marking complete, verify:
 - [ ] PROGRESS.md has final summary
 - [ ] All tests pass
 - [ ] Build succeeds
+
+## Troubleshooting
+
+**If you encounter "not a git repository" errors in submodules:**
+
+1. Try: `git submodule update --init --recursive`
+2. If that fails: `git submodule deinit -f --all && git submodule update --init --recursive`
+3. If still failing, output: `<promise>TASK_BLOCKED: Submodules broken, needs worktree reinitialization</promise>`
+
+**If build fails due to missing dependencies:**
+
+Check that submodules are properly initialized before debugging other issues.
 ```
 
 2. **Create state file** (if max-iterations specified):
