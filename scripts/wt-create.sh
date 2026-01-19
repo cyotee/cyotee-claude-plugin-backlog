@@ -106,7 +106,7 @@ else
             echo "    Copying $subpath..."
             rm -rf "$dst"
             mkdir -p "$(dirname "$dst")"
-            cp -R "$src" "$dst"
+            cp -c -R "$src" "$dst"
 
             # Fix the .git file pointer to use absolute path
             if [ -f "$dst/.git" ]; then
