@@ -11,6 +11,11 @@
 #   `git submodule update --init --recursive` works correctly. Git will
 #   create proper .git file pointers for each submodule in the worktree.
 #
+# Platform-Specific Copy-On-Write (CoW) Support:
+#   - macOS (APFS): Uses `cp -c` for instant file cloning
+#   - Linux (Btrfs/XFS/ZFS): Uses `cp --reflink=auto` for CoW clones
+#   - Linux (ext4) / WSL: Falls back to regular copy (no CoW support)
+#
 # Exit codes:
 #   0 - Success
 #   1 - Submodule initialization failed (worktree created but unusable)
@@ -22,6 +27,54 @@ BASE_DIR="${2:-$(git rev-parse --show-toplevel)}"
 REPO_NAME="$(basename "$BASE_DIR")"
 WT_BASE="${BASE_DIR}-wt"
 WORKTREE_PATH="$WT_BASE/$BRANCH"
+
+# Detect platform and set copy command for CoW support
+detect_copy_command() {
+    local os_type
+    os_type="$(uname -s)"
+
+    case "$os_type" in
+        Darwin)
+            # macOS with APFS - use clone flag for instant CoW copies
+            echo "cp -c -p -R"
+            ;;
+        Linux)
+            # Linux - try reflink for Btrfs/XFS/ZFS, falls back gracefully on ext4
+            # --reflink=auto: Uses CoW if supported, regular copy otherwise
+            echo "cp --reflink=auto -p -R"
+            ;;
+        MINGW*|MSYS*|CYGWIN*)
+            # Windows Git Bash / MSYS2 / Cygwin - no CoW support
+            echo "cp -p -R"
+            ;;
+        *)
+            # Unknown OS - use standard copy
+            echo "cp -p -R"
+            ;;
+    esac
+}
+
+# Get platform-specific copy command
+COPY_CMD=$(detect_copy_command)
+
+# Function to copy with CoW support and informative output
+cow_copy() {
+    local src="$1"
+    local dst="$2"
+
+    # Execute the copy
+    if $COPY_CMD "$src" "$dst"; then
+        return 0
+    else
+        # If CoW copy fails, fall back to regular copy
+        if [[ "$COPY_CMD" != "cp -p -R" ]]; then
+            echo "      (CoW copy failed, using regular copy)"
+            cp -p -R "$src" "$dst"
+        else
+            return 1
+        fi
+    fi
+}
 
 # Function to verify submodules are functional (defined early for reuse)
 verify_submodules() {
@@ -98,6 +151,31 @@ else
     MAIN_GIT_DIR=$(git rev-parse --git-common-dir)
     SUBMODULE_ERRORS=0
 
+    # Show platform info for copy operation
+    echo "  Using copy command: $COPY_CMD"
+    case "$(uname -s)" in
+        Darwin)
+            echo "  (macOS APFS - instant CoW clones)"
+            ;;
+        Linux)
+            # Check if reflink is actually supported
+            local fs_type
+            fs_type=$(df -T "$BASE_DIR" 2>/dev/null | tail -1 | awk '{print $2}')
+            case "$fs_type" in
+                btrfs|xfs|zfs)
+                    echo "  (Linux $fs_type - CoW reflinks enabled)"
+                    ;;
+                *)
+                    echo "  (Linux $fs_type - CoW not supported, using regular copy)"
+                    ;;
+            esac
+            ;;
+        *)
+            echo "  (Standard copy - no CoW support)"
+            ;;
+    esac
+    echo ""
+
     while IFS= read -r subpath; do
         src="$BASE_DIR/$subpath"
         dst="$WORKTREE_PATH/$subpath"
@@ -106,7 +184,7 @@ else
             echo "    Copying $subpath..."
             rm -rf "$dst"
             mkdir -p "$(dirname "$dst")"
-            cp -c -R "$src" "$dst"
+            cow_copy "$src" "$dst"
 
             # Fix the .git file pointer to use absolute path
             if [ -f "$dst/.git" ]; then
