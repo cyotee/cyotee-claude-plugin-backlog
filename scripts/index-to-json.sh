@@ -15,7 +15,7 @@
 #   ./index-to-json.sh --pretty     # Pretty-print JSON
 #
 
-set -euo pipefail
+set -eo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/deps.sh"
@@ -215,21 +215,22 @@ build_json() {
     first_task=false
 
     # Convert deps and blockers to JSON arrays
-    local deps_json="[]"
-    if [[ -n "$deps" ]]; then
+    local deps_json
+    local blockers_json
+    deps_json="[]"
+    blockers_json="[]"
+    if [[ -n "${deps:-}" ]]; then
       deps_json="[$(echo "$deps" | tr ' ' '\n' | sed 's/.*/"&"/' | tr '\n' ',' | sed 's/,$//')"]"
     fi
-
-    local blockers_json="[]"
-    if [[ -n "$blockers" ]]; then
+    if [[ -n "${blockers:-}" ]]; then
       blockers_json="[$(echo "$blockers" | tr ' ' '\n' | sed 's/.*/"&"/' | tr '\n' ',' | sed 's/,$//')"]"
     fi
 
     echo -n "    {"
     echo -n "\"id\": \"$(json_escape "$task_id")\", "
-    echo -n "\"title\": \"$(json_escape "$title")\", "
-    echo -n "\"status\": \"$(json_escape "$status")\", "
-    echo -n "\"computedStatus\": \"$(json_escape "$computed_status")\", "
+    echo -n "\"title\": \"$(json_escape "${title:-}")\", "
+    echo -n "\"status\": \"$(json_escape "${status:-}")\", "
+    echo -n "\"computedStatus\": \"$(json_escape "${computed_status:-}")\", "
     echo -n "\"dependencies\": $deps_json, "
     echo -n "\"blockers\": $blockers_json, "
     echo -n "\"worktree\": {"

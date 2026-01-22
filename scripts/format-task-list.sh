@@ -101,13 +101,21 @@ pad_string() {
 
 # Draw horizontal line
 draw_line() {
-  local char="$1"
-  local widths=("${@:2}")
-  local line="$char"
+  local left="$1"
+  local mid="$2"
+  local right="$3"
+  shift 3
+  local widths=("$@")
+  local line="$left"
+  local first=true
   for w in "${widths[@]}"; do
+    if [[ "$first" != "true" ]]; then
+      line+="$mid"
+    fi
+    first=false
     line+=$(printf '%*s' "$((w + 2))" '' | tr ' ' '─')
-    line+="$char"
   done
+  line+="$right"
   echo "$line"
 }
 
@@ -175,7 +183,7 @@ format_output() {
   fi
 
   # Task table
-  echo "┌$(draw_line "┬" "${widths[@]}" | sed 's/^.//')┐"
+  echo "$(draw_line "┌" "┬" "┐" "${widths[@]}")"
 
   # Header row
   printf "│ %s │ %s │ %s │ %s │ %s │\n" \
@@ -185,7 +193,7 @@ format_output() {
     "$(pad_string "Dependencies" $deps_width)" \
     "$(pad_string "Worktree" $wt_width)"
 
-  echo "├$(draw_line "┼" "${widths[@]}" | sed 's/^.//')┤"
+  echo "$(draw_line "├" "┼" "┤" "${widths[@]}")"
 
   # Data rows
   local first_row=true
@@ -208,7 +216,7 @@ format_output() {
     fi
 
     if [[ "$first_row" != "true" ]]; then
-      echo "├$(draw_line "┼" "${widths[@]}" | sed 's/^.//')┤"
+      echo "$(draw_line "├" "┼" "┤" "${widths[@]}")"
     fi
     first_row=false
 
@@ -220,7 +228,7 @@ format_output() {
       "$(pad_string "$wt" $wt_width)"
   done < <(echo "$json" | jq -c '.tasks[]')
 
-  echo "└$(draw_line "┴" "${widths[@]}" | sed 's/^.//')┘"
+  echo "$(draw_line "└" "┴" "┘" "${widths[@]}")"
 
   # Compact mode stops here
   if [[ "$COMPACT" == "true" ]]; then
@@ -241,12 +249,12 @@ format_output() {
   local sum_tasks_width=30
   local sum_widths=($sum_status_width $sum_count_width $sum_tasks_width)
 
-  echo "┌$(draw_line "┬" "${sum_widths[@]}" | sed 's/^.//')┐"
+  echo "$(draw_line "┌" "┬" "┐" "${sum_widths[@]}")"
   printf "│ %s │ %s │ %s │\n" \
     "$(pad_string "Status" $sum_status_width)" \
     "$(pad_string "Count" $sum_count_width)" \
     "$(pad_string "Tasks" $sum_tasks_width)"
-  echo "├$(draw_line "┼" "${sum_widths[@]}" | sed 's/^.//')┤"
+  echo "$(draw_line "├" "┼" "┤" "${sum_widths[@]}")"
 
   local first_sum=true
   for status_key in complete inProgress inReview ready blocked; do
@@ -270,7 +278,7 @@ format_output() {
     fi
 
     if [[ "$first_sum" != "true" ]]; then
-      echo "├$(draw_line "┼" "${sum_widths[@]}" | sed 's/^.//')┤"
+      echo "$(draw_line "├" "┼" "┤" "${sum_widths[@]}")"
     fi
     first_sum=false
 
@@ -279,7 +287,7 @@ format_output() {
       "$(pad_string "$count" $sum_count_width)" \
       "$(pad_string "$tasks" $sum_tasks_width)"
   done
-  echo "└$(draw_line "┴" "${sum_widths[@]}" | sed 's/^.//')┘"
+  echo "$(draw_line "└" "┴" "┘" "${sum_widths[@]}")"
 
   # Active worktrees section
   local wt_count
@@ -294,13 +302,13 @@ format_output() {
     local wt_mode_width=14
     local wt_widths=($wt_task_width $wt_branch_width $wt_path_width $wt_mode_width)
 
-    echo "┌$(draw_line "┬" "${wt_widths[@]}" | sed 's/^.//')┐"
+    echo "$(draw_line "┌" "┬" "┐" "${wt_widths[@]}")"
     printf "│ %s │ %s │ %s │ %s │\n" \
       "$(pad_string "Task" $wt_task_width)" \
       "$(pad_string "Branch" $wt_branch_width)" \
       "$(pad_string "Path" $wt_path_width)" \
       "$(pad_string "Mode" $wt_mode_width)"
-    echo "├$(draw_line "┼" "${wt_widths[@]}" | sed 's/^.//')┤"
+    echo "$(draw_line "├" "┼" "┤" "${wt_widths[@]}")"
 
     local first_wt=true
     while IFS= read -r wt; do
@@ -315,7 +323,7 @@ format_output() {
       [[ ${#wt_path} -gt $wt_path_width ]] && wt_path="${wt_path:0:$((wt_path_width-3))}..."
 
       if [[ "$first_wt" != "true" ]]; then
-        echo "├$(draw_line "┼" "${wt_widths[@]}" | sed 's/^.//')┤"
+        echo "$(draw_line "├" "┼" "┤" "${wt_widths[@]}")"
       fi
       first_wt=false
 
@@ -325,7 +333,7 @@ format_output() {
         "$(pad_string "$wt_path" $wt_path_width)" \
         "$(pad_string "$wt_mode" $wt_mode_width)"
     done < <(echo "$json" | jq -c '.worktrees[]')
-    echo "└$(draw_line "┴" "${wt_widths[@]}" | sed 's/^.//')┘"
+    echo "$(draw_line "└" "┴" "┘" "${wt_widths[@]}")"
   fi
 
   # Next Actions section
