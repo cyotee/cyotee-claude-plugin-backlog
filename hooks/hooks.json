@@ -20,6 +20,15 @@
             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/progress-logger.sh"
           }
         ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/validate-index-hook.sh"
+          }
+        ]
       }
     ],
     "Stop": [
