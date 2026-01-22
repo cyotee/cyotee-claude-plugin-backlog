@@ -129,15 +129,41 @@ deps_parse_index() {
 
   deps_log "Parsing $index_file"
 
+  # Track whether we've found the task table header
+  local in_task_table=false
+
   # Parse the table rows from INDEX.md
   # Format: | ID | Title | Status | Dependencies | Worktree |
   while IFS= read -r line; do
-    # Skip header rows and empty lines
+    # Skip empty lines
     [[ -z "$line" ]] && continue
-    # Match header row: "| ID |" (ID followed by spaces then pipe, not ID as prefix of IDXEX)
-    [[ "$line" =~ ^[[:space:]]*\|[[:space:]]*ID[[:space:]]*\| ]] && continue
-    [[ "$line" =~ ^[[:space:]]*\|[[:space:]]*-+ ]] && continue
-    [[ ! "$line" =~ ^\| ]] && continue
+
+    # Skip non-table lines
+    [[ ! "$line" =~ ^\|.*\|$ ]] && continue
+
+    # Detect task table header row: must have ID, Title, Status columns
+    if [[ "$line" =~ ^[[:space:]]*\|[[:space:]]*ID[[:space:]]*\|.*Title.*\|.*Status.*\| ]]; then
+      in_task_table=true
+      deps_log "  Found task table header"
+      continue
+    fi
+
+    # Skip separator rows (|---|---|...)
+    [[ "$line" =~ ^[[:space:]]*\|[[:space:]]*[-:]+[[:space:]]*\| ]] && continue
+
+    # If we hit another header row (different table), stop parsing task table
+    if [[ "$line" =~ ^[[:space:]]*\|[[:space:]]*[A-Za-z]+[[:space:]]*\|.*\|.*\| ]] && \
+       [[ ! "$line" =~ ^[[:space:]]*\|[[:space:]]*[A-Z]+-[0-9]+ ]]; then
+      # This looks like a header row for a different table
+      if [[ "$in_task_table" == "true" ]]; then
+        deps_log "  Found different table header, stopping task parsing"
+        in_task_table=false
+      fi
+      continue
+    fi
+
+    # Only parse rows if we're in the task table
+    [[ "$in_task_table" != "true" ]] && continue
 
     # Parse table row - remove leading/trailing pipes
     line="${line#|}"
@@ -162,8 +188,12 @@ deps_parse_index() {
     done
     IFS="$OLD_IFS"
 
-    # Skip if no ID
-    [[ -z "$id" ]] && continue
+    # STRICT: Only accept IDs matching the task ID pattern (PREFIX-NNN)
+    # This prevents parsing documentation tables as tasks
+    if [[ ! "$id" =~ ^[A-Z]+-[0-9]+$ ]]; then
+      deps_log "  Skipping non-task row: $id"
+      continue
+    fi
 
     deps_log "  Found task: $id ($status) deps=[$deps]"
 
