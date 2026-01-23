@@ -244,7 +244,22 @@ Check that submodules are properly initialized before debugging other issues.
    | {PREFIX}-{NNN} | {Title} | In Progress | {Deps} | feature/{name} |
    ```
 
-### Phase 7: Output Launch Instructions
+### Phase 7: Register with Built-in Task Feature
+
+**IMPORTANT:** Use the built-in Task feature to track that this task has been launched.
+
+Call `TaskCreate` with:
+- **subject**: `{PREFIX}-{NNN}: {Title}`
+- **description**: Read from `tasks/{PREFIX}-{NNN}-{kebab-name}/TASK.md` - include the full task description and note that it's running in a worktree at `{WT_PATH}`
+- **activeForm**: `Launched {PREFIX}-{NNN} (worktree)`
+
+Then call `TaskUpdate` to set status to `in_progress`:
+- **taskId**: The ID returned from TaskCreate
+- **status**: `in_progress`
+
+This registers the launched task in the current session. Note: The agent working in the worktree will be in a separate Claude session and should also create its own Task entry when it starts via `/up:prompt`.
+
+### Phase 9: Output Launch Instructions
 
 Output ready-to-use commands with **absolute paths**:
 

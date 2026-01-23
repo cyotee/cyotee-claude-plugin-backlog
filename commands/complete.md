@@ -169,7 +169,19 @@ else
 fi
 ```
 
-### In-Session Step 7: Output Summary
+### In-Session Step 7: Update Built-in Task Feature
+
+**IMPORTANT:** Mark the built-in Task as completed for session tracking.
+
+Call `TaskList` to find the task with subject containing `{TASK_ID}`.
+
+If found, call `TaskUpdate` with:
+- **taskId**: The ID of the matching task
+- **status**: `completed`
+
+This updates the session's task tracking to reflect completion.
+
+### In-Session Step 8: Output Summary
 
 ```
 ═══════════════════════════════════════════════════════════════════
@@ -187,6 +199,7 @@ fi
 
 ✓ PROMPT.md removed
 ✓ INDEX.md updated to Complete
+✓ Built-in Task marked completed
 {If was on feature branch}
 ✓ Feature branch deleted
 
@@ -592,7 +605,19 @@ if git show-ref --verify --quiet "refs/heads/${BRANCH_NAME}"; then
 fi
 ```
 
-### Step 12: Phase 2 Complete - Display Summary
+### Step 12: Update Built-in Task Feature
+
+**IMPORTANT:** Mark the built-in Task as completed for session tracking.
+
+Call `TaskList` to find the task with subject containing `{TASK_ID}`.
+
+If found, call `TaskUpdate` with:
+- **taskId**: The ID of the matching task
+- **status**: `completed`
+
+This updates the session's task tracking to reflect completion.
+
+### Step 13: Phase 2 Complete - Display Summary
 
 ```
 ═══════════════════════════════════════════════════════════════════
@@ -609,6 +634,7 @@ fi
 - Task archived: tasks/archive/{task-dir}/
 - Worktree removed: ✓
 - Branch deleted: ✓
+- Built-in Task: ✓ marked completed
 
 ## Dependency Cascade
 
@@ -633,6 +659,7 @@ No dependent tasks were unblocked.
 ✓ Task files archived
 ✓ PROMPT.md not committed (excluded)
 ✓ Dependencies updated
+✓ Built-in Task marked completed
 
 ## Next Steps
 

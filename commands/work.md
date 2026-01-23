@@ -186,7 +186,22 @@ Append or update session log with:
 - Ready to begin implementation
 ```
 
-### Step 8: Output Instructions
+### Step 8: Register with Built-in Task Feature
+
+**IMPORTANT:** Use the built-in Task feature to track active work in the session.
+
+Call `TaskCreate` with:
+- **subject**: `{TASK_ID}: {TASK_TITLE}`
+- **description**: Read from `tasks/{TASK_NAME}/TASK.md` - include the full task description
+- **activeForm**: `Working on {TASK_ID}`
+
+Then call `TaskUpdate` to set status to `in_progress`:
+- **taskId**: The ID returned from TaskCreate
+- **status**: `in_progress`
+
+This provides real-time visibility of your current work in Claude's UI.
+
+### Step 9: Output Instructions
 
 ```
 ═══════════════════════════════════════════════════════════════════
@@ -198,6 +213,7 @@ Working in-session (no worktree).
 ## Context Loaded
 
 PROMPT.md created with task context.
+Built-in Task registered for session tracking.
 
 ## Required Reading
 
