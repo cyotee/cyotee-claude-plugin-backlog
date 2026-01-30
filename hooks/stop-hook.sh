@@ -21,6 +21,46 @@ if [[ ! -f "PROMPT.md" ]]; then
   allow_exit
 fi
 
+# Check if task is already marked complete in INDEX.md
+# This prevents loops when agent finds task is done but doesn't output promise tag
+check_task_already_complete() {
+  # Extract task ID from PROMPT.md
+  local task_id=$(grep -oE '\*\*Task:\*\* [A-Z]+-[0-9]+' PROMPT.md 2>/dev/null | head -1 | sed 's/\*\*Task:\*\* //' || echo "")
+
+  if [[ -z "$task_id" ]]; then
+    return 1  # Can't determine task ID
+  fi
+
+  # Find INDEX.md - could be at various locations
+  local index_file=""
+  if [[ -f "tasks/INDEX.md" ]]; then
+    index_file="tasks/INDEX.md"
+  elif [[ -f "../tasks/INDEX.md" ]]; then
+    index_file="../tasks/INDEX.md"
+  fi
+
+  if [[ -z "$index_file" ]]; then
+    return 1  # No INDEX.md found
+  fi
+
+  # Check if task is marked complete in INDEX.md (✅ or "Complete")
+  if grep -E "^\|[^|]*$task_id[^|]*\|[^|]*(Complete|✅)[^|]*\|" "$index_file" >/dev/null 2>&1; then
+    echo "$task_id"  # Return task ID for logging
+    return 0
+  fi
+
+  return 1
+}
+
+# Check if task is already complete before doing anything else
+ALREADY_COMPLETE_TASK=$(check_task_already_complete || echo "")
+if [[ -n "$ALREADY_COMPLETE_TASK" ]]; then
+  echo "✅ Task $ALREADY_COMPLETE_TASK already marked complete in INDEX.md - allowing exit" >&2
+  STATE_FILE=".claude/backlog-agent.local.md"
+  [[ -f "$STATE_FILE" ]] && rm "$STATE_FILE"
+  allow_exit
+fi
+
 # State file for iteration tracking (optional)
 STATE_FILE=".claude/backlog-agent.local.md"
 
@@ -136,6 +176,17 @@ if echo "$LAST_OUTPUT" | grep -qi "review mode.*configured\|configured.*review m
   allow_exit
 fi
 
+# Fallback: Check for "task already complete" phrases
+# This catches agents that report task is done but don't output the promise tag
+if echo "$LAST_OUTPUT" | grep -qiE "(task|work).*(is|already|was|has been).*(complete|completed|done|finished)" || \
+   echo "$LAST_OUTPUT" | grep -qiE "already.*(complete|completed|done|finished)" || \
+   echo "$LAST_OUTPUT" | grep -qiE "marked.*(as )?(complete|done|finished)" || \
+   echo "$LAST_OUTPUT" | grep -qiE "status.*:.*complete"; then
+  echo "✅ Task completion detected in output - allowing exit" >&2
+  [[ -f "$STATE_FILE" ]] && rm "$STATE_FILE"
+  allow_exit
+fi
+
 # Not complete - increment iteration and block exit
 NEXT_ITERATION=$((ITERATION + 1))
 
@@ -168,7 +219,7 @@ jq -n \
   '{
     "decision": "block",
     "reason": "Read PROMPT.md and continue from where you left off. Check PROGRESS.md for your prior work.",
-    "systemMessage": ("🔄 " + $iter + " | " + $mode + " incomplete. If context is large, run /compact first. Then re-read PROMPT.md. Complete with <promise>" + $promise + "</promise>")
+    "systemMessage": ("🔄 " + $iter + " | " + $mode + " incomplete. Re-read PROMPT.md and continue. When done (or if already complete), output: <promise>" + $promise + "</promise>")
   }'
 
 exit 0
