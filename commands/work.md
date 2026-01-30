@@ -133,7 +133,8 @@ REPO_NAME=$(grep "^repo_name:" design.yaml | sed 's/repo_name: *//')
 2. Read PROGRESS.md to see what's been done
 3. Implement the task requirements
 4. **Update PROGRESS.md** as you work
-5. When complete, run: `/backlog:complete {TASK_ID}`
+5. When complete, output: `<promise>PHASE_DONE</promise>`
+6. If blocked, output: `<promise>BLOCKED: [reason]</promise>`
 
 ## On Context Compaction
 
@@ -144,16 +145,22 @@ If your context is compacted or you're resuming work:
 
 ## Completion
 
-When implementation is done:
+When implementation is done, output:
 
 ```
-/backlog:complete {TASK_ID}
+<promise>PHASE_DONE</promise>
 ```
 
-This will:
-- Clean up PROMPT.md
-- Update INDEX.md status to Complete
-- If on a feature branch: rebase and merge to main
+This signals the stop hook to allow exit. The task status remains "In Progress".
+
+## After Exiting
+
+After the agent exits, you control the next step:
+
+1. **Go to review:** `/backlog:review {TASK_ID}` - Transition to code review mode
+2. **Complete directly:** `/backlog:complete {TASK_ID}` - Skip review and mark complete
+
+The agent exiting does NOT automatically complete the task.
 ```
 
 ### Step 6: Update INDEX.md

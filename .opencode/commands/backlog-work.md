@@ -61,7 +61,13 @@ Working in-session (no worktree).
 1. Read the task requirements
 2. Implement the changes
 3. Update PROGRESS.md as you work
-4. When done: /backlog-complete {TASK_ID}
+4. When done, output: <promise>PHASE_DONE</promise>
+
+## After Implementation
+
+When done, you control the next step:
+- Review first: /backlog-review {TASK_ID}
+- Complete directly: /backlog-complete {TASK_ID}
 
 ## Current Branch: {CURRENT_BRANCH}
 

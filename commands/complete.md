@@ -6,7 +6,11 @@ allowed-tools: Read, Write, Edit, Bash, Glob, Grep, AskUserQuestion
 
 # Complete Task
 
-Finalize a completed task. Supports multiple workflows:
+Finalize a task and mark it as complete. This is a **manual operation** - it should be run by the user after implementation and optionally review.
+
+**IMPORTANT:** This command does NOT run automatically. The agent exiting with `<promise>PHASE_DONE</promise>` does NOT trigger this command. The user must explicitly run `/backlog:complete` when ready.
+
+## Supported Workflows
 
 1. **In-Session Mode:** PROMPT.md exists, no worktree - complete task in current session
 2. **Worktree Phase 1:** From task worktree - commit, rebase, mark pending merge
@@ -334,7 +338,7 @@ This will:
 **CRITICAL: Output the following promise tag to allow session exit:**
 
 ```
-<promise>TASK_BLOCKED:phase1_complete_switch_to_main_worktree</promise>
+<promise>PHASE_DONE</promise>
 ```
 
 **Exit after Phase 1 - do NOT proceed to Phase 2 from worktree**

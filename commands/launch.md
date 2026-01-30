@@ -156,7 +156,7 @@ To complete all dependencies:
 
 4. **Verify success:**
    - If the script exits with error, **stop and report the failure**
-   - Output: `<promise>TASK_BLOCKED: Worktree creation failed - submodules not initialized</promise>`
+   - Output: `<promise>BLOCKED: Worktree creation failed - submodules not initialized</promise>`
    - Do NOT proceed to Phase 6 if submodules are broken
 
 ### Phase 6: Setup Agent Environment
@@ -191,8 +191,8 @@ To complete all dependencies:
 2. Read PROGRESS.md to see what's been done
 3. Continue work from where you left off
 4. **Update PROGRESS.md** as you work (newest entries first)
-5. When complete, output: `<promise>TASK_COMPLETE</promise>`
-6. If blocked, output: `<promise>TASK_BLOCKED: [reason]</promise>`
+5. When complete, output: `<promise>PHASE_DONE</promise>`
+6. If blocked, output: `<promise>BLOCKED: [reason]</promise>`
 
 ## On Context Compaction
 
@@ -215,7 +215,7 @@ Before marking complete, verify:
 
 1. Try: `git submodule update --init --recursive`
 2. If that fails: `git submodule deinit -f --all && git submodule update --init --recursive`
-3. If still failing, output: `<promise>TASK_BLOCKED: Submodules broken, needs worktree reinitialization</promise>`
+3. If still failing, output: `<promise>BLOCKED: Submodules broken, needs worktree reinitialization</promise>`
 
 **If build fails due to missing dependencies:**
 
@@ -300,9 +300,18 @@ This will read PROMPT.md which directs the agent to:
 ## Stop Hook
 
 The Stop hook will prevent exit until:
-- Agent outputs <promise>TASK_COMPLETE</promise>
-- Agent outputs <promise>TASK_BLOCKED: [reason]</promise>
+- Agent outputs <promise>PHASE_DONE</promise>
+- Agent outputs <promise>BLOCKED: [reason]</promise>
 - Max iterations reached ({N or "unlimited"})
+
+## After Implementation
+
+When the agent completes and exits, you have two options:
+
+1. **Go to review:** `/backlog:review {TASK_ID}` - Transition to code review mode
+2. **Complete directly:** `/backlog:complete {TASK_ID}` - Skip review and mark complete
+
+The agent exiting does NOT automatically complete the task. You control the workflow.
 
 Agent will use subscription usage, not API credits.
 

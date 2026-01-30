@@ -4,6 +4,8 @@ description: Complete a task - supports worktree and in-session workflows
 
 # Complete Task
 
+**IMPORTANT:** This is a manual operation. Run it when you're ready to finalize the task. Agent exit signals (`<promise>PHASE_DONE</promise>`) do NOT automatically trigger this command.
+
 Finalize a completed task. Supports multiple workflows:
 
 1. **In-Session Mode:** PROMPT.md exists, no worktree - complete task in current session

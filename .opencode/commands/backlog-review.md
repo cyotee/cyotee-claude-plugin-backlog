@@ -16,7 +16,7 @@ Update PROMPT.md in an existing worktree to switch from implementation to **code
 
 1. Extract task ID from arguments
 2. Find task directory
-3. Check task status (must be "In Progress")
+3. Check task status (can be "In Progress" or "Ready")
 4. Find existing worktree
 
 ### Phase 2: Initialize Review Files
@@ -61,6 +61,13 @@ The reviewer will:
 - Read TASK.md, PROGRESS.md for context
 - Review code for correctness and completeness
 - Document findings in REVIEW.md
+- Output <promise>PHASE_DONE</promise> when complete
+
+## After Review
+
+When review is done:
+- If passed: /backlog-complete {TASK_ID}
+- If changes needed: Fix issues and review again
 
 ## TIP: Use a Different Model for Review!
 

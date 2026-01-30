@@ -2,6 +2,33 @@
 
 Manage your tasks/ directory backlog and git worktrees for autonomous agent execution with **memory-enabled agents** that survive context compaction.
 
+## v5.0 Design Principle: Exit Permission ≠ State Transition
+
+**Important:** In v5.0, we separated two concepts that were previously conflated:
+
+1. **Exit Permission** - Whether the stop hook allows the agent to exit the session
+2. **State Transition** - Changing task status in INDEX.md
+
+### Promise Tags (Exit Signals Only)
+
+| Promise | Meaning |
+|---------|---------|
+| `<promise>PHASE_DONE</promise>` | "I finished my assigned phase, let me exit" |
+| `<promise>BLOCKED: reason</promise>` | "I can't proceed, let me exit" |
+
+These signals ONLY control whether the stop hook allows exit. They do NOT change task status.
+
+### State Transitions (Explicit Commands Only)
+
+| Command | From Status | To Status |
+|---------|------------|-----------|
+| `/backlog:launch` | Ready | In Progress |
+| `/backlog:work` | Ready | In Progress |
+| `/backlog:review` | In Progress | In Review |
+| `/backlog:complete` | In Progress/In Review | Complete |
+
+**You control the workflow.** Agent exit does not trigger `/backlog:complete`.
+
 ## Installation
 
 ```bash
@@ -115,7 +142,7 @@ Run these commands to start the agent:
 
 Once Claude Code is running, enter this command:
 
-    /ralph-loop:ralph-loop "Read PROMPT.md and follow its instructions. This file tells you which other files to read and how to track your progress." --completion-promise "TASK_COMPLETE" --max-iterations 15
+    /ralph-loop:ralph-loop "Read PROMPT.md and follow its instructions. This file tells you which other files to read and how to track your progress." --completion-promise "PHASE_DONE" --max-iterations 15
 
 ## Files Created/Updated
 
@@ -124,11 +151,13 @@ Once Claude Code is running, enter this command:
 
 ## When Complete
 
-The agent will output `<promise>TASK_COMPLETE</promise>` when done.
+The agent will output `<promise>PHASE_DONE</promise>` when done.
 
-Then return to this session and run:
+Then return to this session and choose your next step:
 
-    /backlog:complete I-5
+    /backlog:review I-5      # Transition to code review mode
+    # OR
+    /backlog:complete I-5    # Skip review, mark complete
 
 ================================================================================
 ```
@@ -334,11 +363,19 @@ Removes a worktree safely (handles submodules):
 4. /backlog:launch I-5    # Create worktree + PROMPT.md + PROGRESS.md
 5. cd <worktree>          # Human switches to worktree
 6. claude --skip-perms    # Human starts Claude Code
-7. /ralph-loop "..."      # Human starts agent loop
+7. /up:prompt             # Agent reads PROMPT.md and works
 8. (agent works)          # Agent executes, updates PROGRESS.md
-9. /backlog:complete I-5  # Prepare for review
-10. /backlog:prune I-5    # Archive after review
+9. <promise>PHASE_DONE    # Agent signals completion, exits
+10. /backlog:review I-5   # (Optional) Transition to code review
+11. (reviewer works)      # Reviewer checks code, writes REVIEW.md
+12. <promise>PHASE_DONE   # Reviewer signals completion, exits
+13. /backlog:complete I-5 # Mark complete, merge, cleanup
 ```
+
+**Key Points:**
+- Steps 9 and 12 are agent exit signals (PHASE_DONE)
+- Steps 10 and 13 are YOUR commands (you control the workflow)
+- You can skip step 10 and go directly to step 13 if you don't want review
 
 ## Memory Protocol Files
 

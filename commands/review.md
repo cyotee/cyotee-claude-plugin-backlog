@@ -24,10 +24,9 @@ Update PROMPT.md in an existing worktree to switch from implementation to **code
    ```
 
 3. **Check task status in INDEX.md:**
-   - Must be "In Progress" to transition to review
-   - If "Ready": "Task hasn't been launched yet. Use /backlog:launch first."
-   - If "Complete": "Task is already complete."
-   - If "In Review": "Task is already in review mode."
+   - Can be "In Progress" (normal flow) or "Ready" (if user wants early review)
+   - If "Complete": "Task is already complete. Nothing to review."
+   - If "In Review": "Task is already in review mode. Start a new session in the worktree."
 
 4. **Find worktree:**
    ```bash
@@ -89,7 +88,7 @@ Actionable items for follow-up tasks:
 
 ---
 
-**When review complete, output:** `<promise>REVIEW_COMPLETE</promise>`
+**When review complete, output:** `<promise>PHASE_DONE</promise>`
 ```
 
 ### Phase 3: Update PROMPT.md
@@ -132,7 +131,8 @@ Update PROMPT.md in the worktree to review mode:
    - Prioritize by severity
    - These will be used to create follow-up tasks
 
-6. When review is complete: `<promise>REVIEW_COMPLETE</promise>`
+6. When review is complete: `<promise>PHASE_DONE</promise>`
+7. If blocked: `<promise>BLOCKED: [reason]</promise>`
 
 ## On Context Compaction
 
@@ -191,7 +191,14 @@ The reviewer will:
 - Ask clarifying questions if needed (saved to REVIEW.md)
 - Review code for correctness and completeness
 - Document findings in REVIEW.md
-- Output <promise>REVIEW_COMPLETE</promise> when done
+- Output <promise>PHASE_DONE</promise> when done
+
+## After Review
+
+When the reviewer exits, you control the next step:
+
+1. **If review passed:** `/backlog:complete {TASK_ID}` - Mark task complete
+2. **If changes needed:** Work on the changes, then review again
 
 ## TIP: Use a Different Model for Review!
 
@@ -205,7 +212,7 @@ claude --model claude-sonnet-4-20250514 --dangerously-skip-permissions
 **CRITICAL: Output the following promise tag to allow session exit:**
 
 ```
-<promise>TASK_BLOCKED:review_mode_configured_start_new_session</promise>
+<promise>PHASE_DONE</promise>
 ```
 
 ## Why Same Worktree?

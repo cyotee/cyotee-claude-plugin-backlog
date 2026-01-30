@@ -76,6 +76,15 @@ cd {ABSOLUTE_WORKTREE_PATH}
 ═══════════════════════════════════════════════════════════════════
 ```
 
+## After Implementation
+
+When the agent outputs `<promise>PHASE_DONE</promise>` and exits, you control the next step:
+
+1. **Go to review:** `/backlog-review {TASK_ID}` - Transition to code review mode
+2. **Complete directly:** `/backlog-complete {TASK_ID}` - Skip review and mark complete
+
+The agent exiting does NOT automatically complete the task.
+
 ## Arguments Reference
 
 | Argument | Description |
