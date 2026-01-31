@@ -1,58 +1,118 @@
 ---
 description: List all unarchived tasks with status, dependencies, and worktrees
-argument-hint: [--worktrees-only] [--json] [--compact]
+argument-hint: [--worktrees-only]
 allowed-tools: Read, Bash, Glob, Grep
 ---
 
 # List Tasks
 
-**CRITICAL: Execute the shell scripts. Do NOT generate your own tables or summaries.**
+Display all unarchived tasks with status, dependencies, and worktrees.
 
-## Step 1: Determine the command based on arguments
+**Arguments:** $ARGUMENTS
 
-Arguments received: $ARGUMENTS
+## Step 1: Read Configuration
 
-**Default (no arguments):**
 ```bash
-"${CLAUDE_PLUGIN_ROOT}/scripts/index-to-json.sh" | "${CLAUDE_PLUGIN_ROOT}/scripts/format-task-list.sh"
+cat design.yaml 2>/dev/null
 ```
 
-**With --json:**
-```bash
-"${CLAUDE_PLUGIN_ROOT}/scripts/index-to-json.sh" --pretty
+Extract `repo_prefix` for task ID pattern matching.
+
+## Step 2: Read INDEX.md
+
+Read `tasks/INDEX.md` to get all tasks. Parse the markdown table to extract:
+- ID (e.g., CRANE-001)
+- Title
+- Status (Complete, In Progress, In Review, Ready, Blocked)
+- Dependencies (task IDs this depends on)
+- Worktree (branch name if active)
+
+**If tasks/INDEX.md not found:**
+```
+No tasks defined.
+
+To create tasks:
+1. Run /design:init to create the tasks/ directory structure
+2. Run /design to create your first task
 ```
 
-**With --compact:**
+## Step 3: Get Active Worktrees
+
 ```bash
-"${CLAUDE_PLUGIN_ROOT}/scripts/index-to-json.sh" | "${CLAUDE_PLUGIN_ROOT}/scripts/format-task-list.sh" --compact
+git worktree list
 ```
 
-**With --worktrees-only:**
-```bash
-git worktree list --porcelain
+For each worktree (except main), check if `PROMPT.md` exists and extract task ID.
+
+## Step 4: Compute Status
+
+For each task:
+- If status is "Complete", "In Progress", or "In Review" - use stored status
+- If all dependencies are Complete - status is "Ready"
+- If any dependency is not Complete - status is "Blocked"
+
+## Step 5: Output Format
+
+**If `--worktrees-only`:** Skip to worktrees-only section below.
+
+**Standard output:**
+
 ```
-Then display worktree info with associated tasks from PROMPT.md files.
+═══════════════════════════════════════════════════════════════════════════════
+  TASK LIST: {PROJECT_NAME}
+═══════════════════════════════════════════════════════════════════════════════
+┌───────────┬──────────────────────────────────────────┬──────────────────┬──────────────────────────┬────────────────────┐
+│ ID        │ Title                                    │ Status           │ Dependencies             │ Worktree           │
+├───────────┼──────────────────────────────────────────┼──────────────────┼──────────────────────────┼────────────────────┤
+│ PROJ-001  │ Core infrastructure                      │ ✅ Complete      │ -                        │ -                  │
+├───────────┼──────────────────────────────────────────┼──────────────────┼──────────────────────────┼────────────────────┤
+│ PROJ-002  │ Registry system                          │ 🚀 In Progress   │ PROJ-001                 │ feature/registry   │
+├───────────┼──────────────────────────────────────────┼──────────────────┼──────────────────────────┼────────────────────┤
+│ PROJ-003  │ Fee collector                            │ ❌ Blocked       │ PROJ-002                 │ -                  │
+├───────────┼──────────────────────────────────────────┼──────────────────┼──────────────────────────┼────────────────────┤
+│ PROJ-004  │ Vault types                              │ 🆕 Ready         │ PROJ-001                 │ -                  │
+└───────────┴──────────────────────────────────────────┴──────────────────┴──────────────────────────┴────────────────────┘
 
-## Step 2: Execute the command
+Summary
 
-Run the appropriate bash command above using the Bash tool.
+Total: 4 tasks
+┌──────────────────┬───────┬────────────────────────────┐
+│ Status           │ Count │ Tasks                      │
+├──────────────────┼───────┼────────────────────────────┤
+│ ✅ Complete      │ 1     │ PROJ-001                   │
+├──────────────────┼───────┼────────────────────────────┤
+│ 🚀 In Progress   │ 1     │ PROJ-002                   │
+├──────────────────┼───────┼────────────────────────────┤
+│ 🆕 Ready         │ 1     │ PROJ-004                   │
+├──────────────────┼───────┼────────────────────────────┤
+│ ❌ Blocked       │ 1     │ PROJ-003                   │
+└──────────────────┴───────┴────────────────────────────┘
 
-## Step 3: Display the output
+Next Actions
 
-Show the complete output from the script. The script produces:
-- Task table with columns: ID, Title, Status, Dependencies, Worktree
-- Summary section with counts by status
-- Active worktrees section (if any exist)
-- Next actions (ready tasks and blocked tasks)
+Ready to start:
+- /backlog:launch PROJ-004 - Vault types
 
-## Error Handling
+Currently blocked:
+- PROJ-003: Waiting on PROJ-002
+```
 
-If scripts fail:
-- **No tasks/ directory:** Tell user to run `/design:init`
-- **No INDEX.md:** Tell user to create tasks with `/design`
-- **jq not installed:** Tell user to run `brew install jq`
+## Worktrees-Only View (--worktrees-only)
 
-## Reference: Status Icons
+```
+═══════════════════════════════════════════════════════════════════════════════
+  ACTIVE WORKTREES
+═══════════════════════════════════════════════════════════════════════════════
+┌───────────┬────────────────────────┬────────────────────────────────────────┬────────────────┐
+│ Task      │ Branch                 │ Path                                   │ Mode           │
+├───────────┼────────────────────────┼────────────────────────────────────────┼────────────────┤
+│ PROJ-002  │ feature/registry       │ /path/to/worktree                      │ Implementation │
+└───────────┴────────────────────────┴────────────────────────────────────────┴────────────────┘
+
+Total: 1 active worktree
+```
+
+## Status Icons Reference
 
 | Status | Icon |
 |--------|------|
@@ -62,3 +122,10 @@ If scripts fail:
 | Changes Requested | 🔄 |
 | Ready | 🆕 |
 | Blocked | ❌ |
+
+## Related Commands
+
+- `/backlog` - Detailed status with dependency graph
+- `/backlog:read <ID>` - Read full task details
+- `/backlog:launch <ID>` - Launch agent worktree
+- `/backlog:complete <ID>` - Complete and cleanup
