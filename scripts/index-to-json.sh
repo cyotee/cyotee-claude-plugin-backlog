@@ -214,16 +214,45 @@ build_json() {
     fi
     first_task=false
 
-    # Convert deps and blockers to JSON arrays
-    local deps_json
-    local blockers_json
-    deps_json="[]"
-    blockers_json="[]"
+    # Convert deps and blockers to JSON arrays safely
+    local deps_json="[]"
+    local blockers_json="[]"
     if [[ -n "${deps:-}" ]]; then
-      deps_json="[$(echo "$deps" | tr ' ' '\n' | sed 's/.*/"&"/' | tr '\n' ',' | sed 's/,$//')]"
+      # Build array element by element to avoid pipe issues
+      local dep_items=""
+      for dep_item in $deps; do
+        if [[ -n "$dep_items" ]]; then
+          dep_items="$dep_items,\"$dep_item\""
+        else
+          dep_items="\"$dep_item\""
+        fi
+      done
+      deps_json="[$dep_items]"
     fi
     if [[ -n "${blockers:-}" ]]; then
-      blockers_json="[$(echo "$blockers" | tr ' ' '\n' | sed 's/.*/"&"/' | tr '\n' ',' | sed 's/,$//')]"
+      local blocker_items=""
+      for blocker_item in $blockers; do
+        if [[ -n "$blocker_items" ]]; then
+          blocker_items="$blocker_items,\"$blocker_item\""
+        else
+          blocker_items="\"$blocker_item\""
+        fi
+      done
+      blockers_json="[$blocker_items]"
+    fi
+
+    # Build worktree JSON values safely (avoid inline command substitution)
+    local branch_json="null"
+    local path_json="null"
+    local mode_json="null"
+    if [[ -n "$worktree_branch" ]]; then
+      branch_json="\"$(json_escape "$worktree_branch")\""
+    fi
+    if [[ -n "$worktree_path" ]]; then
+      path_json="\"$(json_escape "$worktree_path")\""
+    fi
+    if [[ -n "$worktree_mode" ]]; then
+      mode_json="\"$(json_escape "$worktree_mode")\""
     fi
 
     echo -n "    {"
@@ -234,9 +263,9 @@ build_json() {
     echo -n "\"dependencies\": $deps_json, "
     echo -n "\"blockers\": $blockers_json, "
     echo -n "\"worktree\": {"
-    echo -n "\"branch\": $(if [[ -n "$worktree_branch" ]]; then echo "\"$(json_escape "$worktree_branch")\""; else echo "null"; fi), "
-    echo -n "\"path\": $(if [[ -n "$worktree_path" ]]; then echo "\"$(json_escape "$worktree_path")\""; else echo "null"; fi), "
-    echo -n "\"mode\": $(if [[ -n "$worktree_mode" ]]; then echo "\"$(json_escape "$worktree_mode")\""; else echo "null"; fi)"
+    echo -n "\"branch\": $branch_json, "
+    echo -n "\"path\": $path_json, "
+    echo -n "\"mode\": $mode_json"
     echo -n "}"
     echo -n "}"
   done < <(deps_all_tasks)
