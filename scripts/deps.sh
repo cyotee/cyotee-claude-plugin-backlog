@@ -31,13 +31,23 @@ set -eo pipefail
 DEPS_VERBOSE="${DEPS_VERBOSE:-false}"
 DEPS_CROSS_REPO="${DEPS_CROSS_REPO:-true}"
 
-# Temp directory for graph data (cleaned up on exit)
+# Cache directory for graph data (stored in tasks/.deps-cache, cleaned up on exit)
 DEPS_TMP_DIR=""
 
-# Initialize temp directory
+# Initialize cache directory in tasks/ alongside INDEX.md
 deps_init_tmp() {
   if [[ -z "$DEPS_TMP_DIR" || ! -d "$DEPS_TMP_DIR" ]]; then
-    DEPS_TMP_DIR=$(mktemp -d "${TMPDIR:-/tmp}/deps.XXXXXX")
+    local repo_root
+    repo_root=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+    local tasks_dir="$repo_root/tasks"
+
+    # Ensure tasks directory exists
+    if [[ ! -d "$tasks_dir" ]]; then
+      mkdir -p "$tasks_dir"
+    fi
+
+    # Use .deps-cache subdirectory with unique suffix for concurrent runs
+    DEPS_TMP_DIR="$tasks_dir/.deps-cache.$$"
     mkdir -p "$DEPS_TMP_DIR/status"
     mkdir -p "$DEPS_TMP_DIR/deps"
     mkdir -p "$DEPS_TMP_DIR/rdeps"
