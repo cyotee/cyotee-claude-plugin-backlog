@@ -142,8 +142,11 @@ build_json() {
 
   # Collect worktree info into associative-like structure
   # Using temp file since bash 3.2 doesn't have associative arrays
-  local wt_tmp
-  wt_tmp=$(mktemp)
+  # Use tasks/ directory for temp files to stay within allowed paths
+  local repo_root
+  repo_root=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+  local wt_tmp="$repo_root/tasks/.wt-cache.$$"
+  mkdir -p "$repo_root/tasks"
   get_worktrees > "$wt_tmp"
 
   # Start JSON
