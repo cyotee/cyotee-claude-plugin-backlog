@@ -220,10 +220,10 @@ build_json() {
     deps_json="[]"
     blockers_json="[]"
     if [[ -n "${deps:-}" ]]; then
-      deps_json="[$(echo "$deps" | tr ' ' '\n' | sed 's/.*/"&"/' | tr '\n' ',' | sed 's/,$//')"]"
+      deps_json="[$(echo "$deps" | tr ' ' '\n' | sed 's/.*/"&"/' | tr '\n' ',' | sed 's/,$//')]"
     fi
     if [[ -n "${blockers:-}" ]]; then
-      blockers_json="[$(echo "$blockers" | tr ' ' '\n' | sed 's/.*/"&"/' | tr '\n' ',' | sed 's/,$//')"]"
+      blockers_json="[$(echo "$blockers" | tr ' ' '\n' | sed 's/.*/"&"/' | tr '\n' ',' | sed 's/,$//')]"
     fi
 
     echo -n "    {"
