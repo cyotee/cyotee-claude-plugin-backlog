@@ -31,13 +31,17 @@ Use this skill to mirror the Claude `/backlog` plugin flows inside Codex. It ass
   - **Worktree mode** (from `/backlog:launch`): Two-phase workflow - Phase 1 from worktree (rebase, mark pending), Phase 2 from main (merge, archive, cleanup).
 - `prune [<ID>|--all]`: Move completed/reviewed tasks to `tasks/archive/`, update `INDEX.md`, and list any stale worktrees to delete (use `plugins/backlog/scripts/wt-remove.sh <branch> [repo-root]`).
 - `review <ID>`: Transition task to **code review mode** (not task definition audit - use `/design:review` for that). Updates PROMPT.md in worktree to switch from implementation to code review.
-- `list --worktrees-only`: Cross-reference `git worktree list` with tasks to show active branches and statuses.
+- `list`: **MUST use shell scripts** - Run `"${CLAUDE_PLUGIN_ROOT}/scripts/index-to-json.sh" | "${CLAUDE_PLUGIN_ROOT}/scripts/format-task-list.sh"` to display formatted task table with ID, Title, Status, Dependencies, and Worktree columns. Use `--json` for raw JSON, `--compact` for minimal output, `--worktrees-only` to show only active worktrees.
 
 ## Key Files
 - `tasks/INDEX.md` — canonical task table (layer name, prefix, status, worktree, deps).
 - `tasks/[ID]/PRD.md`, `PROGRESS.md`, `REVIEW.md` — task docs to read/write.
 - `PROMPT.md` (in worktrees) — agent instructions; regenerate when launching if stale.
-- Scripts: `plugins/backlog/scripts/wt-create.sh`, `wt-remove.sh`, `deps.sh` (dependency checks).
+- Scripts:
+  - `plugins/backlog/scripts/index-to-json.sh` — parse INDEX.md to JSON (used by `list`)
+  - `plugins/backlog/scripts/format-task-list.sh` — format JSON to terminal tables (used by `list`)
+  - `plugins/backlog/scripts/wt-create.sh`, `wt-remove.sh` — worktree management
+  - `plugins/backlog/scripts/deps.sh` — dependency resolution library
 
 ## Conventions
 - Layer/prefix detection: read `tasks/INDEX.md` for `layer`/`prefix`; else derive prefix from repo/dir name first letter.
