@@ -151,16 +151,20 @@ When implementation is done, output:
 <promise>PHASE_DONE</promise>
 ```
 
-This signals the stop hook to allow exit. The task status remains "In Progress".
+This signals you have finished the implementation phase. The task status remains "In Progress".
+The USER will then decide the next step (review, complete, or continue).
 
-## After Exiting
+## CRITICAL: Forbidden Commands
 
-After the agent exits, you control the next step:
+**You must NEVER invoke these commands yourself:**
 
-1. **Go to review:** `/backlog:review {TASK_ID}` - Transition to code review mode
-2. **Complete directly:** `/backlog:complete {TASK_ID}` - Skip review and mark complete
+- `/backlog:complete` - USER-ONLY: marks task complete
+- `/backlog:review` - USER-ONLY: transitions to review mode
 
-The agent exiting does NOT automatically complete the task.
+These commands control workflow state transitions. Only the user decides when
+to transition. Your job is to implement, signal PHASE_DONE, and wait.
+
+If you invoke these commands, you are violating your instructions.
 ```
 
 ### Step 6: Update INDEX.md
@@ -234,7 +238,10 @@ Read these files to understand the task:
 1. Read the task requirements
 2. Implement the changes
 3. Update PROGRESS.md as you work
-4. When done: /backlog:complete {TASK_ID}
+4. When done: output <promise>PHASE_DONE</promise>
+5. Wait for user to decide next step
+
+**Do NOT invoke /backlog:complete or /backlog:review yourself.**
 
 ## Current Branch: {CURRENT_BRANCH}
 
