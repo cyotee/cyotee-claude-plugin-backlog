@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # deps.sh - Dependency resolution utilities for task management
 # Compatible with bash 3.2+ (macOS default)
@@ -23,7 +23,9 @@
 #   deps_visualize             # ASCII dependency graph
 #
 
-set -euo pipefail
+# Note: Do NOT use 'set -u' (nounset) as this file is sourced by other scripts
+# that may have unset variables during normal operation
+set -eo pipefail
 
 # Configuration
 DEPS_VERBOSE="${DEPS_VERBOSE:-false}"

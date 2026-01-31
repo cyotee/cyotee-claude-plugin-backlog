@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # format-task-list.sh - Format task JSON into beautiful terminal output
 #
@@ -13,7 +13,12 @@
 #   ./format-task-list.sh --compact   # Minimal output
 #
 
-set -euo pipefail
+# Ensure we're running in bash
+if [ -z "$BASH_VERSION" ]; then
+  exec /bin/bash "$0" "$@"
+fi
+
+set -eo pipefail
 
 # Options
 INPUT_FILE=""

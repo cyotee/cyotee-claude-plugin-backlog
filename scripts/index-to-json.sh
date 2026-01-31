@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # index-to-json.sh - Parse INDEX.md into JSON format
 #
@@ -14,6 +14,11 @@
 #   ./index-to-json.sh -o file.json # Output to file
 #   ./index-to-json.sh --pretty     # Pretty-print JSON
 #
+
+# Ensure we're running in bash
+if [ -z "$BASH_VERSION" ]; then
+  exec /bin/bash "$0" "$@"
+fi
 
 set -eo pipefail
 
@@ -210,7 +215,7 @@ build_json() {
 
     # Output task JSON
     if [[ "$first_task" == "false" ]]; then
-      echo ","
+      printf ','
     fi
     first_task=false
 
@@ -220,79 +225,90 @@ build_json() {
     if [[ -n "${deps:-}" ]]; then
       # Build array element by element to avoid pipe issues
       local dep_items=""
+      local dep_item
       for dep_item in $deps; do
         if [[ -n "$dep_items" ]]; then
-          dep_items="$dep_items,\"$dep_item\""
+          dep_items="${dep_items},\"${dep_item}\""
         else
-          dep_items="\"$dep_item\""
+          dep_items="\"${dep_item}\""
         fi
       done
-      deps_json="[$dep_items]"
+      deps_json="[${dep_items}]"
     fi
     if [[ -n "${blockers:-}" ]]; then
       local blocker_items=""
+      local blocker_item
       for blocker_item in $blockers; do
         if [[ -n "$blocker_items" ]]; then
-          blocker_items="$blocker_items,\"$blocker_item\""
+          blocker_items="${blocker_items},\"${blocker_item}\""
         else
-          blocker_items="\"$blocker_item\""
+          blocker_items="\"${blocker_item}\""
         fi
       done
-      blockers_json="[$blocker_items]"
+      blockers_json="[${blocker_items}]"
     fi
 
     # Build worktree JSON values safely (avoid inline command substitution)
     local branch_json="null"
     local path_json="null"
     local mode_json="null"
-    if [[ -n "$worktree_branch" ]]; then
+    if [[ -n "${worktree_branch:-}" ]]; then
       branch_json="\"$(json_escape "$worktree_branch")\""
     fi
-    if [[ -n "$worktree_path" ]]; then
+    if [[ -n "${worktree_path:-}" ]]; then
       path_json="\"$(json_escape "$worktree_path")\""
     fi
-    if [[ -n "$worktree_mode" ]]; then
+    if [[ -n "${worktree_mode:-}" ]]; then
       mode_json="\"$(json_escape "$worktree_mode")\""
     fi
 
-    echo -n "    {"
-    echo -n "\"id\": \"$(json_escape "$task_id")\", "
-    echo -n "\"title\": \"$(json_escape "${title:-}")\", "
-    echo -n "\"status\": \"$(json_escape "${status:-}")\", "
-    echo -n "\"computedStatus\": \"$(json_escape "${computed_status:-}")\", "
-    echo -n "\"dependencies\": $deps_json, "
-    echo -n "\"blockers\": $blockers_json, "
-    echo -n "\"worktree\": {"
-    echo -n "\"branch\": $branch_json, "
-    echo -n "\"path\": $path_json, "
-    echo -n "\"mode\": $mode_json"
-    echo -n "}"
-    echo -n "}"
+    # Build task JSON using printf for reliability
+    local task_json
+    task_json=$(printf '{"id": "%s", "title": "%s", "status": "%s", "computedStatus": "%s", "dependencies": %s, "blockers": %s, "worktree": {"branch": %s, "path": %s, "mode": %s}}' \
+      "$(json_escape "$task_id")" \
+      "$(json_escape "${title:-}")" \
+      "$(json_escape "${status:-}")" \
+      "$(json_escape "${computed_status:-}")" \
+      "$deps_json" \
+      "$blockers_json" \
+      "$branch_json" \
+      "$path_json" \
+      "$mode_json")
+    printf '%s' "$task_json"
   done < <(deps_all_tasks)
 
   echo ""
   echo "  ],"
 
   # Worktrees array (all active worktrees, including orphans)
-  echo "  \"worktrees\": ["
+  printf '  "worktrees": [\n'
   local first_wt=true
   while IFS=$'\t' read -r wt_path wt_branch wt_task wt_mode; do
     [[ -z "$wt_path" ]] && continue
 
     if [[ "$first_wt" == "false" ]]; then
-      echo ","
+      printf ','
     fi
     first_wt=false
 
-    echo -n "    {"
-    echo -n "\"path\": \"$(json_escape "$wt_path")\", "
-    echo -n "\"branch\": \"$(json_escape "$wt_branch")\", "
-    echo -n "\"taskId\": $(if [[ -n "$wt_task" ]]; then echo "\"$(json_escape "$wt_task")\""; else echo "null"; fi), "
-    echo -n "\"mode\": $(if [[ -n "$wt_mode" ]]; then echo "\"$(json_escape "$wt_mode")\""; else echo "null"; fi)"
-    echo -n "}"
+    local task_json="null"
+    local mode_json="null"
+    if [[ -n "${wt_task:-}" ]]; then
+      task_json="\"$(json_escape "$wt_task")\""
+    fi
+    if [[ -n "${wt_mode:-}" ]]; then
+      mode_json="\"$(json_escape "$wt_mode")\""
+    fi
+
+    local wt_json
+    wt_json=$(printf '{"path": "%s", "branch": "%s", "taskId": %s, "mode": %s}' \
+      "$(json_escape "$wt_path")" \
+      "$(json_escape "$wt_branch")" \
+      "$task_json" \
+      "$mode_json")
+    printf '%s' "$wt_json"
   done < "$wt_tmp"
-  echo ""
-  echo "  ],"
+  printf '\n  ],\n'
 
   # Summary
   local total=$((complete_count + in_progress_count + in_review_count + ready_count + blocked_count))

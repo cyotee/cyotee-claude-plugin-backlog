@@ -2,6 +2,6 @@
   "$schema": "https://opencode.ai/schemas/opencode.json",
   "name": "backlog",
   "description": "Task management and worktree orchestration for AI-assisted development workflows",
-  "version": "3.0.0",
+  "version": "5.1.2",
   "instructions": "Task management system using tasks/INDEX.md for tracking. Use /backlog to view status, /backlog-launch to create worktrees, /backlog-complete to finish tasks."
 }
