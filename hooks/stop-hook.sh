@@ -25,9 +25,16 @@ HOOK_INPUT=$(cat)
 
 # Helper function to allow exit with proper JSON output
 allow_exit() {
+  # Clean up exit flag if it exists
+  rm -f ".claude/backlog-exit" 2>/dev/null || true
   echo '{"decision": "approve"}'
   exit 0
 }
+
+# Check for exit flag first (set by management commands like /backlog:launch)
+if [[ -f ".claude/backlog-exit" ]]; then
+  allow_exit
+fi
 
 # Check if PROMPT.md exists (indicates we're in an agent context)
 if [[ ! -f "PROMPT.md" ]]; then
@@ -155,7 +162,7 @@ jq -n \
   '{
     "decision": "block",
     "reason": "Read PROMPT.md and continue from where you left off. Check PROGRESS.md for your prior work.",
-    "systemMessage": ("🔄 " + $iter + " | Phase incomplete. Re-read PROMPT.md and continue. When done, output: <promise>PHASE_DONE</promise>  If blocked, output: <promise>BLOCKED: reason</promise>")
+    "systemMessage": ("🔄 " + $iter + " | Phase incomplete. Re-read PROMPT.md and continue.\n\nWhen done: <promise>PHASE_DONE</promise>\nIf blocked: <promise>BLOCKED: reason</promise>\nIf stuck in loop: run /backlog:stop")
   }'
 
 exit 0

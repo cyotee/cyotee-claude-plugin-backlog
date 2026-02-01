@@ -335,13 +335,22 @@ This will:
 ═══════════════════════════════════════════════════════════════════
 ```
 
-**CRITICAL: Output the following promise tag to allow session exit:**
+### Step 7: Create Exit Flag and Output Promise
+
+**CRITICAL:** This allows the current session to exit cleanly.
+
+```bash
+mkdir -p .claude
+touch .claude/backlog-exit
+```
+
+Then output this promise tag:
 
 ```
-<promise>PHASE_DONE</promise>
+<promise>BLOCKED: phase1_complete_switch_to_main_worktree</promise>
 ```
 
-**Exit after Phase 1 - do NOT proceed to Phase 2 from worktree**
+**Do not output anything after the promise tag. Exit after Phase 1 - do NOT proceed to Phase 2 from worktree.**
 
 ---
 

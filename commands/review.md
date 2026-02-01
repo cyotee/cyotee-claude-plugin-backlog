@@ -209,11 +209,22 @@ claude --model claude-sonnet-4-20250514 --dangerously-skip-permissions
 ═══════════════════════════════════════════════════════════════════
 ```
 
-**CRITICAL: Output the following promise tag to allow session exit:**
+### Phase 7: Create Exit Flag and Output Promise
+
+**CRITICAL:** This allows the current session to exit cleanly.
+
+```bash
+mkdir -p .claude
+touch .claude/backlog-exit
+```
+
+Then output this promise tag:
 
 ```
-<promise>PHASE_DONE</promise>
+<promise>BLOCKED: review_mode_configured_start_new_session</promise>
 ```
+
+**Do not output anything after the promise tag.**
 
 ## Why Same Worktree?
 

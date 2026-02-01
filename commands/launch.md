@@ -318,6 +318,23 @@ Agent will use subscription usage, not API credits.
 ═══════════════════════════════════════════════════════════════════
 ```
 
+### Phase 10: Create Exit Flag and Output Promise
+
+**CRITICAL:** This allows the current session to exit cleanly.
+
+```bash
+mkdir -p .claude
+touch .claude/backlog-exit
+```
+
+Then output this promise tag (allows stop hook to let you exit):
+
+```
+<promise>BLOCKED: worktree_launched_start_new_session</promise>
+```
+
+**Do not output anything after the promise tag.**
+
 ## Arguments Reference
 
 | Argument | Description |
