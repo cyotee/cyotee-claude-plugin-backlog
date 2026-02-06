@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Backlog Stop Hook v2.0
+# Backlog Stop Hook v3.0
 #
 # DESIGN PRINCIPLE: Exit permission is SEPARATE from state transitions.
 #
@@ -36,39 +36,44 @@ if [[ -f ".claude/backlog-exit" ]]; then
   allow_exit
 fi
 
-# Check if PROMPT.md exists (indicates we're in an agent context)
-if [[ ! -f "PROMPT.md" ]]; then
-  # Not an agent context - allow exit
+# Gate: Only activate in backlog-managed sessions
+# The state file is created exclusively by /backlog:work and /backlog:launch.
+# This prevents trapping sessions from other plugins (e.g., /design:design)
+# that may also create PROMPT.md.
+STATE_FILE=".claude/backlog-agent.local.md"
+if [[ ! -f "$STATE_FILE" ]]; then
+  # Not a backlog agent context - allow exit unconditionally
   allow_exit
 fi
 
-# State file for iteration tracking (optional)
-STATE_FILE=".claude/backlog-agent.local.md"
+# Read state from file
+FRONTMATTER=$(sed -n '/^---$/,/^---$/{ /^---$/d; p; }' "$STATE_FILE")
+ITERATION=$(echo "$FRONTMATTER" | grep '^iteration:' | sed 's/iteration: *//' || echo "1")
+MAX_ITERATIONS=$(echo "$FRONTMATTER" | grep '^max_iterations:' | sed 's/max_iterations: *//' || echo "0")
 
-# Default values if no state file
-ITERATION=1
-MAX_ITERATIONS=0
-
-# Read state file if exists
-if [[ -f "$STATE_FILE" ]]; then
-  FRONTMATTER=$(sed -n '/^---$/,/^---$/{ /^---$/d; p; }' "$STATE_FILE")
-  ITERATION=$(echo "$FRONTMATTER" | grep '^iteration:' | sed 's/iteration: *//' || echo "1")
-  MAX_ITERATIONS=$(echo "$FRONTMATTER" | grep '^max_iterations:' | sed 's/max_iterations: *//' || echo "0")
-
-  # Validate numeric fields
-  if [[ ! "$ITERATION" =~ ^[0-9]+$ ]]; then
-    echo "⚠️  Backlog hook: Invalid iteration value in state file" >&2
-    ITERATION=1
-  fi
-  if [[ ! "$MAX_ITERATIONS" =~ ^[0-9]+$ ]]; then
-    MAX_ITERATIONS=0
-  fi
+# Validate numeric fields
+if [[ ! "$ITERATION" =~ ^[0-9]+$ ]]; then
+  echo "⚠️  Backlog hook: Invalid iteration value in state file" >&2
+  ITERATION=1
+fi
+if [[ ! "$MAX_ITERATIONS" =~ ^[0-9]+$ ]]; then
+  MAX_ITERATIONS=0
 fi
 
-# Check if max iterations reached
-if [[ $MAX_ITERATIONS -gt 0 ]] && [[ $ITERATION -ge $MAX_ITERATIONS ]]; then
-  echo "🛑 Max iterations ($MAX_ITERATIONS) reached." >&2
-  echo "   Phase did not complete within iteration limit." >&2
+# Hard safety cap: prevent infinite loops even when max_iterations=0 (unlimited)
+HARD_CAP=10
+if [[ $MAX_ITERATIONS -eq 0 ]]; then
+  EFFECTIVE_MAX=$HARD_CAP
+elif [[ $MAX_ITERATIONS -gt $HARD_CAP ]]; then
+  EFFECTIVE_MAX=$MAX_ITERATIONS  # User explicitly requested more — honor it
+else
+  EFFECTIVE_MAX=$MAX_ITERATIONS
+fi
+
+# Check if effective max iterations reached
+if [[ $ITERATION -ge $EFFECTIVE_MAX ]]; then
+  echo "🛑 Safety cap reached ($ITERATION/$EFFECTIVE_MAX iterations)." >&2
+  echo "   Agent did not output a <promise> tag within the iteration limit." >&2
   echo "   Check PROGRESS.md for current state." >&2
   [[ -f "$STATE_FILE" ]] && rm "$STATE_FILE"
   allow_exit
@@ -88,21 +93,23 @@ if ! grep -q '"role":"assistant"' "$TRANSCRIPT_PATH"; then
   allow_exit
 fi
 
-# Extract last assistant message
-LAST_LINE=$(grep '"role":"assistant"' "$TRANSCRIPT_PATH" | tail -1)
-LAST_OUTPUT=$(echo "$LAST_LINE" | jq -r '
-  .message.content |
-  map(select(.type == "text")) |
-  map(.text) |
-  join("\n")
-' 2>/dev/null || echo "")
+# Scan the last 5 assistant messages for promise tags (not just the last one).
+# This handles the common case where the agent outputs <promise>PHASE_DONE</promise>
+# but then adds a closing summary in a subsequent message.
+PROMISE_TEXT=""
+while IFS= read -r line; do
+  MSG_TEXT=$(echo "$line" | jq -r '
+    .message.content |
+    map(select(.type == "text")) |
+    map(.text) |
+    join("\n")
+  ' 2>/dev/null || echo "")
 
-# Check for promise tags using perl for multiline support
-if echo "$LAST_OUTPUT" | grep -q '<promise>'; then
-  PROMISE_TEXT=$(echo "$LAST_OUTPUT" | perl -0777 -pe 's/.*?<promise>(.*?)<\/promise>.*/$1/s; s/^\s+|\s+$//g' 2>/dev/null || echo "")
-else
-  PROMISE_TEXT=""
-fi
+  if echo "$MSG_TEXT" | grep -q '<promise>'; then
+    PROMISE_TEXT=$(echo "$MSG_TEXT" | perl -0777 -pe 's/.*?<promise>(.*?)<\/promise>.*/$1/s; s/^\s+|\s+$//g' 2>/dev/null || echo "")
+    break  # Use the most recent promise found (tail gives newest last, but we read in reverse)
+  fi
+done < <(grep '"role":"assistant"' "$TRANSCRIPT_PATH" | tail -5 | tac)
 
 # Check for PHASE_DONE - generic exit signal
 if [[ "$PROMISE_TEXT" = "PHASE_DONE" ]]; then
@@ -150,11 +157,7 @@ if [[ -f "$STATE_FILE" ]]; then
 fi
 
 # Build iteration info for system message
-if [[ $MAX_ITERATIONS -gt 0 ]]; then
-  ITER_INFO="Iteration $NEXT_ITERATION of $MAX_ITERATIONS"
-else
-  ITER_INFO="Iteration $NEXT_ITERATION (no limit)"
-fi
+ITER_INFO="Iteration $NEXT_ITERATION of $EFFECTIVE_MAX"
 
 # Output JSON to block the stop and provide continuation prompt
 jq -n \

@@ -136,12 +136,16 @@ if [[ "$CURRENT_BRANCH" != "main" && "$CURRENT_BRANCH" != "master" ]]; then
 fi
 ```
 
-### In-Session Step 4: Cleanup PROMPT.md
+### In-Session Step 4: Cleanup Session Files
 
 ```bash
 # Remove PROMPT.md to keep main clean
 rm -f PROMPT.md
 echo "✓ Removed PROMPT.md"
+
+# Remove backlog state file (stop hook gate)
+rm -f .claude/backlog-agent.local.md
+echo "✓ Removed backlog state file"
 ```
 
 ### In-Session Step 5: Update INDEX.md

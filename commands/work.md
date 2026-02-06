@@ -177,7 +177,26 @@ rm -f tasks/INDEX.md.bak
 echo "✓ Task status updated to In Progress"
 ```
 
-### Step 7: Initialize PROGRESS.md
+### Step 7: Create State File
+
+**CRITICAL:** The stop hook gates on this file. Without it, the stop hook won't
+enforce the promise protocol (and won't trap the session either).
+
+```bash
+mkdir -p .claude
+cat > .claude/backlog-agent.local.md << EOF
+---
+active: true
+iteration: 1
+max_iterations: 0
+started_at: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+task_id: "${TASK_ID}"
+mode: "implementation"
+---
+EOF
+```
+
+### Step 8: Initialize PROGRESS.md
 
 **If PROGRESS.md doesn't exist or shows "Not started":**
 
@@ -197,7 +216,7 @@ Append or update session log with:
 - Ready to begin implementation
 ```
 
-### Step 8: Register with Built-in Task Feature
+### Step 9: Register with Built-in Task Feature
 
 **IMPORTANT:** Use the built-in Task feature to track active work in the session.
 
@@ -212,7 +231,7 @@ Then call `TaskUpdate` to set status to `in_progress`:
 
 This provides real-time visibility of your current work in Claude's UI.
 
-### Step 9: Output Instructions
+### Step 10: Output Instructions
 
 ```
 ═══════════════════════════════════════════════════════════════════
