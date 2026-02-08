@@ -727,7 +727,7 @@ No dependent tasks were unblocked.
 $ /backlog:complete CRANE-003
 
 Verifying context...
-  Current branch: review/crn-test-framework
+  Current branch: feature/CRANE-003-test-framework
   ✓ Running Phase 1 from task worktree
 
 Committing final changes...
@@ -760,10 +760,10 @@ Verifying context...
   ✓ Running Phase 2 from main worktree
 
 Finding worktree branch...
-  Found branch: review/crn-test-framework
+  Found branch: feature/CRANE-003-test-framework
 
 Verifying task status (from worktree branch)...
-  Task status on review/crn-test-framework: Pending Merge
+  Task status on feature/CRANE-003-test-framework: Pending Merge
   ✓ Task is Pending Merge (verified from worktree branch)
 
 Verifying fast-forward possible...

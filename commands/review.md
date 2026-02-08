@@ -160,7 +160,7 @@ If context is compacted or you're resuming:
 
 1. **Update task status** to "In Review":
    ```markdown
-   | {PREFIX}-{NNN} | {Title} | In Review | {Deps} | feature/{name} |
+   | {PREFIX}-{NNN} | {Title} | In Review | {Deps} | feature/{PREFIX}-{NNN}-{name} |
    ```
 
 ### Phase 6: Output Instructions

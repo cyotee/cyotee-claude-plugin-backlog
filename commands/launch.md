@@ -139,9 +139,13 @@ To complete all dependencies:
 2. **Determine worktree location:**
    ```bash
    REPO_ROOT=$(git rev-parse --show-toplevel)
-   BRANCH="feature/{kebab-name-from-task}"
+   TASK_DIR_NAME=$(basename "$TASK_DIR")   # e.g., CRANE-003-uniswap-v4-utils
+   BRANCH="feature/${TASK_DIR_NAME}"       # e.g., feature/CRANE-003-uniswap-v4-utils
    WT_PATH="${REPO_ROOT}-wt/${BRANCH}"
    ```
+
+   **IMPORTANT:** The branch name MUST include the task ID as a prefix. The task directory
+   basename already has this format (`{TASK_ID}-{kebab-name}`), so use it directly.
 
 3. **Create worktree with submodules:**
    ```bash
@@ -241,7 +245,7 @@ Check that submodules are properly initialized before debugging other issues.
 
 3. **Update tasks/INDEX.md** status to "In Progress":
    ```markdown
-   | {PREFIX}-{NNN} | {Title} | In Progress | {Deps} | feature/{name} |
+   | {PREFIX}-{NNN} | {Title} | In Progress | {Deps} | feature/{PREFIX}-{NNN}-{name} |
    ```
 
 ### Phase 7: Register with Built-in Task Feature
@@ -377,8 +381,8 @@ Preparing task files...
   Files committed: chore: prepare task CRANE-003 for agent launch
 
 Creating worktree...
-  Branch: feature/uniswap-v4-utils
-  Path: /Users/you/repos/crane-wt/feature/uniswap-v4-utils
+  Branch: feature/CRANE-003-uniswap-v4-utils
+  Path: /Users/you/repos/crane-wt/feature/CRANE-003-uniswap-v4-utils
 
 Initializing submodules...
   ✅ Submodules ready
